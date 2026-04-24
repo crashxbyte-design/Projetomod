@@ -336,12 +336,11 @@ class BaseDadosPanel(QWidget):
         while self.kpi_row.count():
             item = self.kpi_row.takeAt(0)
             if item.widget(): item.widget().deleteLater()
-        s = db.get_stats()
-        self.kpi_row.addWidget(_kpi("🗺️","Indicadores Mapeados",s["mapeados"],f"{s['pct_mapeados']}% do total",BRANCO,"#2E7D32"))
-        self.kpi_row.addWidget(_kpi("🔗","Sem Vínculo",s["sem_vinculo"],f"{s['pct_sem']}% do total",BRANCO,"#616161"))
-        self.kpi_row.addWidget(_kpi("⏱","Pendentes",s["pendentes"],f"{s['pct_pend']}% do total",BRANCO,"#E65100"))
-        self.kpi_row.addWidget(_kpi("🛢","Linhas no Banco",s["linhas_banco"],"100% do total",BRANCO,"#1565C0"))
-        self.kpi_row.addWidget(_kpi("☁","Última Importação","Excel",s.get("ultima_import","—").replace("\n", " - "),BRANCO,"#6A1B9A"))
+        s = db.get_stats_indicadores()
+        self.kpi_row.addWidget(_kpi("🗺️","Indicadores Ativos",s["ativos"],f"{s['total']} no total",BRANCO,"#2E7D32"))
+        self.kpi_row.addWidget(_kpi("🎯","Com Meta",s["com_meta"],f"{s['sem_meta']} sem meta",BRANCO,"#1565C0"))
+        self.kpi_row.addWidget(_kpi("📊","Subindicadores",s["n_subindicadores"],"ativos no banco",BRANCO,"#6A1B9A"))
+        self.kpi_row.addWidget(_kpi("🗒","Registros Históricos",s["n_historico"],"lançamentos salvos",BRANCO,"#E65100"))
 
     def _badge(self, text, status):
         lbl = QLabel(text)
@@ -352,60 +351,33 @@ class BaseDadosPanel(QWidget):
         return lbl
 
     def _load_table(self):
-        rows = db.get_all()
+        rows = db.get_all_indicadores()
         self.table.setRowCount(len(rows))
-        
-        abas = self._available_sheets.copy(); campos = set(); results = set()
-        
         for r, m in enumerate(rows):
-            if m.get("aba_origem_excel"): abas.add(m.get("aba_origem_excel"))
-            if m.get("campo_origem"): campos.add(m.get("campo_origem"))
-            if m.get("resultado_representa"): results.add(m.get("resultado_representa"))
-            
             def ci(txt, center=False):
                 it = QTableWidgetItem(str(txt) if txt else "–")
                 if center: it.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
                 return it
-            
             is_selected = self._current_codigo == m["codigo_indicador"]
             rad = "◉ " if is_selected else "○ "
             it_cod = ci(rad + m["codigo_indicador"])
             if is_selected: it_cod.setForeground(QColor(VERMELHO))
             self.table.setItem(r, 0, it_cod)
-            
             self.table.setItem(r, 1, ci(m["nome_indicador"]))
-            usa = "Sim" if m.get("usa_dados_operacionais") else "Não"
-            it_usa = ci(usa, True); it_usa.setForeground(QColor(VERDE if usa=="Sim" else PENDENTE_FG))
-            self.table.setItem(r, 2, it_usa)
-            self.table.setItem(r, 3, ci(m.get("aba_origem_excel") or "–", True))
-            self.table.setItem(r, 4, ci(m.get("campo_origem") or "–"))
-            self.table.setItem(r, 5, ci(m.get("resultado_representa") or "–"))
-            
-            sub = str(m.get("subindicadores_existem", 0))
-            it_sub = ci(sub, True); 
-            self.table.setItem(r, 6, it_sub)
-            
-            st = m.get("status_mapeamento") or STATUS_SEM_VINCULO
-            self.table.setCellWidget(r, 7, self._badge(st, st))
-            
-            self.table.setItem(r, 8, ci(m.get("observacoes") or ""))
+            self.table.setItem(r, 2, ci(m.get("tipo") or "–", True))
+            self.table.setItem(r, 3, ci(m.get("periodicidade") or "–", True))
+            self.table.setItem(r, 4, ci(m.get("unidade") or "–", True))
+            self.table.setItem(r, 5, ci(m.get("meta_texto") or "–", True))
+            self.table.setItem(r, 6, ci(str(m.get("meta_numero")) if m.get("meta_numero") is not None else "–", True))
+            menor = "Sim" if m.get("menor_melhor") else "Não"
+            self.table.setItem(r, 7, ci(menor, True))
+            ativo = "Sim" if m.get("indicador_ativo") else "Não"
+            it_at = ci(ativo, True)
+            it_at.setForeground(QColor(VERDE if ativo == "Sim" else PENDENTE_FG))
+            self.table.setItem(r, 8, it_at)
             self.table.setRowHeight(r, 38)
-            
-        self.footer_lbl.setText(f"Exibindo 1 a {len(rows)} de {len(rows)} registros")
+        self.footer_lbl.setText(f"Exibindo {len(rows)} registros")
         self._refresh_kpis()
-        
-        cur_aba = self.f_aba.currentText()
-        cur_campo = self.f_campo.currentText()
-        cur_result = self.f_result.currentText()
-        
-        self.f_aba.clear(); self.f_aba.addItems(sorted(list(abas)))
-        self.f_campo.clear(); self.f_campo.addItems(sorted(list(campos)))
-        self.f_result.clear(); self.f_result.addItems(sorted(list(results)))
-        
-        self.f_aba.setCurrentText(cur_aba)
-        self.f_campo.setCurrentText(cur_campo)
-        self.f_result.setCurrentText(cur_result)
-        
         self._filter_table()
 
     def _filter_table(self):
@@ -426,7 +398,7 @@ class BaseDadosPanel(QWidget):
         if not rows: return
         cod = self.table.item(rows[0], 0).text().replace("◉ ", "").replace("○ ", "")
         
-        m = db.get_by_codigo(cod)
+        m = db.get_indicador(cod)
         if not m: return
         
         self._current_codigo = m["codigo_indicador"]
@@ -465,10 +437,7 @@ class BaseDadosPanel(QWidget):
         self.f_campo.setCurrentText(m.get("campo_origem") or "")
         self.f_result.setCurrentText(m.get("resultado_representa") or "")
         self.f_modo.setCurrentText(m.get("modo_comparacao") or "2025 x 2026")
-        # Opções
         self.f_obs.setPlainText(m.get("observacoes") or "")
-        self.chk_usa.setChecked(bool(m.get("usa_dados_operacionais", 1)))
-        self.chk_sub.setChecked(int(m.get("subindicadores_existem", 0)) > 0)
         self.chk_ativo.setChecked(bool(m.get("indicador_ativo", 1)))
         self.f_codigo.setReadOnly(True)
         self.f_codigo.setStyleSheet(f"QLineEdit{{background:#F0F0F0;border:1px solid {CINZA_BORDA};border-radius:4px;padding:5px 8px;color:{CINZA_SUAVE};}}")
@@ -482,24 +451,16 @@ class BaseDadosPanel(QWidget):
         except ValueError:
             pass
         return {
-            "codigo_indicador":       self.f_codigo.text().strip(),
-            "nome_indicador":         self.f_nome.text().strip(),
-            "tipo":                   self.f_tipo.currentText(),
-            "periodicidade":          self.f_periodo.currentText(),
-            "unidade":                self.f_unidade.text().strip() or None,
-            "meta_texto":             self.f_meta_texto.text().strip() or None,
-            "meta_numero":            meta_num,
-            "menor_melhor":           1 if self.chk_menor.isChecked() else 0,
-            "usa_dados_operacionais": 1 if self.chk_usa.isChecked() else 0,
-            "aba_origem_excel":       self.f_aba.currentText().strip() or None,
-            "campo_origem":           self.f_campo.currentText().strip() or None,
-            "resultado_representa":   self.f_result.currentText().strip() or None,
-            "subindicadores_existem": 1 if self.chk_sub.isChecked() else 0,
-            "subindicadores_status":  "",
-            "status_mapeamento":      STATUS_SEM_VINCULO,
-            "observacoes":            self.f_obs.toPlainText().strip() or None,
-            "indicador_ativo":        1 if self.chk_ativo.isChecked() else 0,
-            "modo_comparacao":        self.f_modo.currentText().strip(),
+            "codigo_indicador": self.f_codigo.text().strip(),
+            "nome_indicador":   self.f_nome.text().strip(),
+            "tipo":             self.f_tipo.currentText(),
+            "periodicidade":    self.f_periodo.currentText(),
+            "unidade":          self.f_unidade.text().strip() or None,
+            "meta_texto":       self.f_meta_texto.text().strip() or None,
+            "meta_numero":      meta_num,
+            "menor_melhor":     1 if self.chk_menor.isChecked() else 0,
+            "observacoes":      self.f_obs.toPlainText().strip() or None,
+            "indicador_ativo":  1 if self.chk_ativo.isChecked() else 0,
         }
 
     # ── Ações ───────────────────────────────────────────────────────────────
@@ -510,14 +471,14 @@ class BaseDadosPanel(QWidget):
             self.lbl_status.setStyleSheet(f"color:{LARANJA};")
             return
         
-        if record["aba_origem_excel"] and record["campo_origem"]:
-            record["status_mapeamento"] = STATUS_MAPEADO
-        elif not record["aba_origem_excel"] and not record["campo_origem"]:
-            record["status_mapeamento"] = STATUS_SEM_VINCULO
-        else:
-            record["status_mapeamento"] = STATUS_PENDENTE_PROCESSO
+        # Salva no banco
 
-        ok = db.upsert(record)
+
+
+
+
+
+        ok = db.upsert_indicador(record)
         if ok:
             self.lbl_status.setText(f"✅ O indicador '{record['codigo_indicador']}' foi salvo com sucesso no banco!")
             self.lbl_status.setStyleSheet(f"color:{VERDE};")

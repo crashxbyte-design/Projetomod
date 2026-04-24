@@ -23,16 +23,20 @@ from panel_pendencias import PendenciasPanel
 from panel_instrucoes import InstrucoesPanel
 from panel_base_dados import BaseDadosPanel
 from panel_historico import HistoricoPanel
+from panel_analise_critica import AnaliseCriticaPanel
+from panel_config import ConfigPanel
 
 
 PAGE_TITLES = {
-    "painel":        ("BOOK DE INDICADORES",  "PAINEL EXECUTIVO"),
-    "indicadores":   ("BOOK DE INDICADORES",  "INDICADORES"),
-    "subindicadores":("SEGURANÇA PATRIMONIAL", "GRÁFICOS E SUBINDICADORES"),
-    "pendencias":    ("SEGURANÇA PATRIMONIAL", "PENDÊNCIAS E OBSERVAÇÕES"),
-    "historico":     ("SEGURANÇA PATRIMONIAL", "HISTÓRICO MENSAL"),
-    "base_dados":    ("SEGURANÇA PATRIMONIAL", "BASE DE DADOS"),
-    "instrucoes":    ("SEGURANÇA PATRIMONIAL", "INSTRUÇÕES"),
+    "painel":         ("BOOK DE INDICADORES",  "PAINEL EXECUTIVO"),
+    "indicadores":    ("BOOK DE INDICADORES",  "INDICADORES"),
+    "subindicadores": ("SEGURANÇA PATRIMONIAL", "GRÁFICOS E SUBINDICADORES"),
+    "pendencias":     ("SEGURANÇA PATRIMONIAL", "PENDÊNCIAS E OBSERVAÇÕES"),
+    "historico":      ("SEGURANÇA PATRIMONIAL", "HISTÓRICO MENSAL"),
+    "analise":        ("SEGURANÇA PATRIMONIAL", "ANÁLISE CRÍTICA"),
+    "base_dados":     ("SEGURANÇA PATRIMONIAL", "BASE DE DADOS"),
+    "config":         ("SEGURANÇA PATRIMONIAL", "CONFIGURAÇÕES"),
+    "instrucoes":     ("SEGURANÇA PATRIMONIAL", "INSTRUÇÕES"),
 }
 
 
@@ -96,13 +100,15 @@ class MainApp(QMainWindow):
             widget.deleteLater()
             
         self._pages.clear()
-        self._add_page("painel",        PainelExecutivoPanel(self.data))
-        self._add_page("indicadores",   IndicadoresPanel(self.data))
-        self._add_page("subindicadores",SubindicadoresPanel(self.data))
-        self._add_page("pendencias",    PendenciasPanel(self.data))
-        self._add_page("historico",     HistoricoPanel(self.data))
-        self._add_page("base_dados",    BaseDadosPanel(self.data))
-        self._add_page("instrucoes",    InstrucoesPanel(self.data))
+        self._add_page("painel",         PainelExecutivoPanel(self.data))
+        self._add_page("indicadores",    IndicadoresPanel(self.data))
+        self._add_page("subindicadores", SubindicadoresPanel(self.data))
+        self._add_page("pendencias",     PendenciasPanel(self.data))
+        self._add_page("historico",      HistoricoPanel(self.data))
+        self._add_page("analise",        AnaliseCriticaPanel(self.data))
+        self._add_page("base_dados",     BaseDadosPanel(self.data))
+        self._add_page("config",         ConfigPanel(self.data))
+        self._add_page("instrucoes",     InstrucoesPanel(self.data))
         
         # Restaurar página atual se houver
         current_key = "painel"

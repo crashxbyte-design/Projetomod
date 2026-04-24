@@ -176,7 +176,7 @@ class HistoricoPanel(QWidget):
 
     def _populate_selector(self):
         self.sel_ind.clear()
-        inds = db.get_active()
+        inds = db.get_indicadores_ativos()
         for i in inds:
             self.sel_ind.addItem(f"{i['codigo_indicador']}  —  {i['nome_indicador']}", i['codigo_indicador'])
 
@@ -191,11 +191,12 @@ class HistoricoPanel(QWidget):
         ano  = self._current_ano()
         if not cod: return
 
-        ind = db.get_by_codigo(cod)
+        ind  = db.get_indicador(cod)
         nome = ind['nome_indicador'] if ind else cod
         self.grade_title.setText(f"{cod}  —  {nome}  |  Ano: {ano}")
 
-        hist = db.get_historico(cod, anos=[ano])
+        # Agrega histórico de todos os subindicadores do indicador
+        hist = db.get_historico_indicador(cod, [ano])
         dados_ano = hist.get(ano, {})
 
         # Preenche inputs
@@ -217,12 +218,11 @@ class HistoricoPanel(QWidget):
         self._rebuild_saved_table(cod)
 
     def _rebuild_saved_table(self, cod):
-        # Limpa grid salvo
         while self.saved_grid.count():
             item = self.saved_grid.takeAt(0)
             if item.widget(): item.widget().deleteLater()
 
-        hist = db.get_historico(cod)
+        hist = db.get_historico_indicador(cod)
         if not hist:
             lbl = QLabel("Nenhum dado salvo para este indicador.")
             lbl.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
@@ -264,14 +264,23 @@ class HistoricoPanel(QWidget):
             self.lbl_info.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
             return
 
+        # Usa o primeiro subindicador do indicador (ou cria um padrão)
+        subs = db.get_subindicadores(cod)
+        if not subs:
+            self.lbl_info.setText("⚠️ Crie pelo menos um subindicador primeiro.")
+            self.lbl_info.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
+            return
+
         saved = 0; errors = 0
+        # Salva no primeiro subindicador por simplicidade
+        sub_id = subs[0]["id"]
         for mes in MESES:
             txt = self._inputs[mes].text().strip().replace(",", ".")
             if txt == "" or txt == "–":
                 continue
             try:
                 valor = float(txt)
-                if db.upsert_historico(cod, ano, mes, valor):
+                if db.upsert_historico(sub_id, ano, mes, valor):
                     saved += 1
                 else:
                     errors += 1
