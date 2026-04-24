@@ -22,6 +22,7 @@ from panel_subindicadores import SubindicadoresPanel
 from panel_pendencias import PendenciasPanel
 from panel_instrucoes import InstrucoesPanel
 from panel_base_dados import BaseDadosPanel
+from panel_historico import HistoricoPanel
 
 
 PAGE_TITLES = {
@@ -29,6 +30,7 @@ PAGE_TITLES = {
     "indicadores":   ("BOOK DE INDICADORES",  "INDICADORES"),
     "subindicadores":("SEGURANÇA PATRIMONIAL", "GRÁFICOS E SUBINDICADORES"),
     "pendencias":    ("SEGURANÇA PATRIMONIAL", "PENDÊNCIAS E OBSERVAÇÕES"),
+    "historico":     ("SEGURANÇA PATRIMONIAL", "HISTÓRICO MENSAL"),
     "base_dados":    ("SEGURANÇA PATRIMONIAL", "BASE DE DADOS"),
     "instrucoes":    ("SEGURANÇA PATRIMONIAL", "INSTRUÇÕES"),
 }
@@ -98,6 +100,7 @@ class MainApp(QMainWindow):
         self._add_page("indicadores",   IndicadoresPanel(self.data))
         self._add_page("subindicadores",SubindicadoresPanel(self.data))
         self._add_page("pendencias",    PendenciasPanel(self.data))
+        self._add_page("historico",     HistoricoPanel(self.data))
         self._add_page("base_dados",    BaseDadosPanel(self.data))
         self._add_page("instrucoes",    InstrucoesPanel(self.data))
         

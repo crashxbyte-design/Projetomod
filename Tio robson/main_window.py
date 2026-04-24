@@ -21,6 +21,7 @@ NAV_ITEMS = [
     ("📊", "Indicadores",               "indicadores"),
     ("📈", "Gráficos e\nSubindicadores","subindicadores"),
     ("📋", "Pendências /\nObservações", "pendencias"),
+    ("📅", "Histórico\nMensal",         "historico"),
     ("🗄️", "Base de Dados",             "base_dados"),
     ("ℹ️", "Instruções",               "instrucoes"),
 ]

@@ -228,26 +228,49 @@ class BaseDadosPanel(QWidget):
         self.det_ly.addWidget(_FieldRow("Indicador", self.f_nome))
         self.det_ly.addSpacing(4)
         
+        self.det_ly.addWidget(_section_lbl("CLASSIFICAÇÃO"))
+
+        self.f_tipo = _combo()
+        self.f_tipo.addItems(["Operacional", "Estratégico", "Tático"])
+        self.f_periodo = _combo()
+        self.f_periodo.addItems(["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"])
+        self.f_unidade = _edit("Ex: evasões, óbitos, %")
+        self.det_ly.addWidget(_FieldRow("Tipo", self.f_tipo))
+        self.det_ly.addWidget(_FieldRow("Periodicidade", self.f_periodo))
+        self.det_ly.addWidget(_FieldRow("Unidade", self.f_unidade))
+        self.det_ly.addSpacing(4)
+
+        self.det_ly.addWidget(_section_lbl("META"))
+
+        self.f_meta_texto  = _edit("Ex: ≤ 3  ou  ≥ 95%")
+        self.f_meta_numero = _edit("Número para cálculo automático")
+        self.chk_menor = QCheckBox("Menor valor é melhor")
+        self.chk_menor.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
+        self.det_ly.addWidget(_FieldRow("Meta (texto)", self.f_meta_texto))
+        self.det_ly.addWidget(_FieldRow("Meta (número)", self.f_meta_numero))
+        self.det_ly.addWidget(self.chk_menor)
+        self.det_ly.addSpacing(4)
+
         self.det_ly.addWidget(_section_lbl("MAPEAMENTO"))
-        
+
         self.f_aba    = _combo(editable=True)
         self.f_campo  = _combo(editable=True)
         self.f_result = _combo(editable=True)
         self.f_modo   = _combo(editable=True)
-        
         self.f_modo.addItems(["2025 x 2026", "2024 x 2025"])
 
-        self.det_ly.addWidget(_FieldRow("Aba (Origem)",  self.f_aba))
-        self.det_ly.addWidget(_FieldRow("Campo (Origem)",        self.f_campo))
-        self.det_ly.addWidget(_FieldRow("Resultado Representa",self.f_result))
-        self.det_ly.addWidget(_FieldRow("Modo de Comparação",self.f_modo))
+        self.det_ly.addWidget(_FieldRow("Aba (Origem)", self.f_aba))
+        self.det_ly.addWidget(_FieldRow("Campo (Origem)", self.f_campo))
+        self.det_ly.addWidget(_FieldRow("Resultado Representa", self.f_result))
+        self.det_ly.addWidget(_FieldRow("Modo de Comparação", self.f_modo))
         
         self.det_ly.addSpacing(4)
 
+        self.det_ly.addSpacing(4)
+        self.det_ly.addWidget(_section_lbl("OPÇÕES"))
         self.chk_usa  = QCheckBox("Utiliza dados operacionais"); self.chk_usa.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
         self.chk_sub  = QCheckBox("Possui subindicadores");      self.chk_sub.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
         self.chk_ativo= QCheckBox("Indicador ativo");             self.chk_ativo.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
-        
         self.det_ly.addWidget(self.chk_usa)
         self.det_ly.addWidget(self.chk_sub)
         self.det_ly.addWidget(self.chk_ativo)
@@ -424,11 +447,25 @@ class BaseDadosPanel(QWidget):
     def _fill_fields(self, m):
         self.f_codigo.setText(m.get("codigo_indicador") or "")
         self.f_nome.setText(m.get("nome_indicador") or "")
+        # Classificação
+        tipo = m.get("tipo") or "Operacional"
+        idx = self.f_tipo.findText(tipo)
+        self.f_tipo.setCurrentIndex(idx if idx >= 0 else 0)
+        per = m.get("periodicidade") or "Mensal"
+        idx = self.f_periodo.findText(per)
+        self.f_periodo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.f_unidade.setText(m.get("unidade") or "")
+        # Meta
+        self.f_meta_texto.setText(m.get("meta_texto") or "")
+        meta_num = m.get("meta_numero")
+        self.f_meta_numero.setText(str(int(meta_num)) if isinstance(meta_num, float) and meta_num == int(meta_num) else str(meta_num) if meta_num is not None else "")
+        self.chk_menor.setChecked(bool(m.get("menor_melhor", 1)))
+        # Mapeamento
         self.f_aba.setCurrentText(m.get("aba_origem_excel") or "")
         self.f_campo.setCurrentText(m.get("campo_origem") or "")
         self.f_result.setCurrentText(m.get("resultado_representa") or "")
         self.f_modo.setCurrentText(m.get("modo_comparacao") or "2025 x 2026")
-        
+        # Opções
         self.f_obs.setPlainText(m.get("observacoes") or "")
         self.chk_usa.setChecked(bool(m.get("usa_dados_operacionais", 1)))
         self.chk_sub.setChecked(int(m.get("subindicadores_existem", 0)) > 0)
@@ -438,16 +475,28 @@ class BaseDadosPanel(QWidget):
         self.btn_delete.setVisible(True)
 
     def _collect_fields(self) -> dict:
+        meta_num = None
+        try:
+            v = self.f_meta_numero.text().strip().replace(",",".")
+            meta_num = float(v) if v else None
+        except ValueError:
+            pass
         return {
             "codigo_indicador":       self.f_codigo.text().strip(),
             "nome_indicador":         self.f_nome.text().strip(),
+            "tipo":                   self.f_tipo.currentText(),
+            "periodicidade":          self.f_periodo.currentText(),
+            "unidade":                self.f_unidade.text().strip() or None,
+            "meta_texto":             self.f_meta_texto.text().strip() or None,
+            "meta_numero":            meta_num,
+            "menor_melhor":           1 if self.chk_menor.isChecked() else 0,
             "usa_dados_operacionais": 1 if self.chk_usa.isChecked() else 0,
             "aba_origem_excel":       self.f_aba.currentText().strip() or None,
             "campo_origem":           self.f_campo.currentText().strip() or None,
             "resultado_representa":   self.f_result.currentText().strip() or None,
             "subindicadores_existem": 1 if self.chk_sub.isChecked() else 0,
-            "subindicadores_status":  "", # Mantém vazio ou atualiza por lógica paralela
-            "status_mapeamento":      STATUS_SEM_VINCULO, # Recalculado ao salvar
+            "subindicadores_status":  "",
+            "status_mapeamento":      STATUS_SEM_VINCULO,
             "observacoes":            self.f_obs.toPlainText().strip() or None,
             "indicador_ativo":        1 if self.chk_ativo.isChecked() else 0,
             "modo_comparacao":        self.f_modo.currentText().strip(),
