@@ -165,10 +165,10 @@ class IndicadoresPanel(QWidget):
         kpi_row.setSpacing(12)
         cards_data = [
             ("Total de Indicadores", stats["total"], "100% do total", PRETO_TITULO),
-            ("Com Meta", stats["com_meta"], f"{stats['com_meta']/stats['total']*100:.0f}% do total", VERDE),
-            ("Sem Meta", stats["sem_meta"], f"{stats['sem_meta']/stats['total']*100:.0f}% do total", PRETO_TITULO),
-            ("Em Atenção", stats["em_atencao"], "20% do total", LARANJA),
-            ("Críticos", stats["pendentes_processo"], "20% do total", PENDENTE_FG),
+            ("Com Meta", stats["com_meta"], f"{stats['com_meta']/max(stats['total'],1)*100:.0f}% do total", VERDE),
+            ("Sem Meta", stats["sem_meta"], f"{stats['sem_meta']/max(stats['total'],1)*100:.0f}% do total", PRETO_TITULO),
+            ("Em Atenção", stats["em_atencao"], f"{stats['em_atencao']/max(stats['total'],1)*100:.0f}% do total", LARANJA),
+            ("A Preencher", stats["a_preencher"], f"{stats['a_preencher']/max(stats['total'],1)*100:.0f}% do total", PENDENTE_FG),
         ]
         from widgets import KPICard
         for label, val, sub, color in cards_data:
@@ -232,11 +232,15 @@ class IndicadoresPanel(QWidget):
         obs_title.setStyleSheet(f"color: {VERMELHO}; background: transparent; border: none;")
         obs_ly.addWidget(obs_title)
 
-        obs_items = [
-            (PENDENTE_FG, "SP.IND.002 – Índice de Conformidade: necessita implantação de processo + checklist de ronda."),
-            (LARANJA, "SP.IND.008 – Pacientes Monitorados: necessita criação de controle formal com registro e periodicidade."),
-            (CINZA_META, f"* Metas estabelecidas conforme plano anual da Segurança Patrimonial. Período: {stats['periodo']}."),
-        ]
+        # Gera observações dinamicamente dos indicadores sem dados ou com pendencia
+        obs_items = []
+        for ind in self.data["indicadores"]:
+            obs = ind.get("origem") or ""
+            if ind["status"] == "A preencher" and obs and obs != "—":
+                obs_items.append((PENDENTE_FG, f"{ind['codigo']} – {ind['titulo']}: {obs}"))
+            elif ind["status"] == "Em Atenção" and obs and obs != "—":
+                obs_items.append((LARANJA, f"{ind['codigo']} – {ind['titulo']}: {obs}"))
+        obs_items.append((CINZA_META, f"* Período de referência: {stats['periodo']}."))
         for color, txt in obs_items:
             row = QHBoxLayout()
             dot = QLabel("●")

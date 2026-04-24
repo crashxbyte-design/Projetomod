@@ -112,7 +112,7 @@ class MainApp(QMainWindow):
             from data_loader import get_all_data
             self.data = get_all_data()
             self.build_pages()
-            print("[INFO] Dados recarregados com sucesso do Excel.")
+            print("[INFO] Dados recarregados com sucesso do banco SQLite.")
         except Exception as e:
             print(f"[ERRO] Falha ao recarregar dados: {e}")
 
@@ -134,17 +134,22 @@ def main():
     app.setOrganizationName("Mackenzie")
     app.setFont(QFont("Segoe UI", 10))
 
-    # Carrega dados
+    # Carrega dados — fonte única: SQLite via data_loader
     try:
         data = get_all_data()
     except Exception as e:
-        print(f"[AVISO] Erro ao carregar dados: {e}")
-        from data_loader import INDICADORES_FIXOS, PENDENCIAS, get_summary_stats
+        print(f"[AVISO] Erro ao carregar dados do banco: {e}")
+        # Fallback seguro com estrutura mínima vazia
         data = {
-            "indicadores": INDICADORES_FIXOS,
-            "pendencias": PENDENCIAS,
-            "stats": get_summary_stats(),
-            "subindicadores": {},
+            "config":       {},
+            "indicadores":  [],
+            "pendencias":   [],
+            "stats":        {"total":0,"com_meta":0,"sem_meta":0,"em_atencao":0,
+                             "pendentes_processo":0,"a_preencher":0,
+                             "periodo":"—","responsavel":"—","atualizacao":"—"},
+            "comparativos": {},
+            "sub_raw":      [],
+            "ac_raw":       [],
         }
 
     window = MainApp(data)
