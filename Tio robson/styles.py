@@ -4,7 +4,7 @@ Design System v2 – Slate Premium.
 """
 
 # ─── Paleta Institucional ────────────────────────────────────────────────────
-VERMELHO       = "#B91C1C"   # Crimson principal
+VERMELHO       = "#C8102E"   # Mackenzie vermelho principal
 VERMELHO_ESC   = "#991B1B"   # Tom escuro para destaques
 VERMELHO_SOFT  = "#FEF2F2"   # Fundo suave vermelho
 
@@ -18,7 +18,7 @@ PRETO_TITULO   = "#0F172A"   # Slate 900
 
 VERDE          = "#059669"   # Emerald 600 – Atingido
 VERDE_SOFT     = "#D1FAE5"   # Emerald 100
-LARANJA        = "#D97706"   # Amber 600 – Em atenção
+LARANJA        = "#E65100"   # Amber 600 – Em atenção
 LARANJA_SOFT   = "#FEF3C7"   # Amber 100
 AZUL           = "#2563EB"   # Blue 600
 CINZA_META     = "#94A3B8"   # Slate 400
@@ -43,7 +43,6 @@ STATUS_COLORS = {
 GLOBAL_STYLE = f"""
 * {{
     font-family: 'Segoe UI', 'Arial', sans-serif;
-    font-size: 10px;
     outline: none;
     margin: 0;
     padding: 0;

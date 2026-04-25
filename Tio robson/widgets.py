@@ -28,8 +28,11 @@ def shadow(radius=12, offset=(0, 2), color=(0, 0, 0, 30)):
 class SectionTitle(QLabel):
     """Título de seção com barra vermelha à esquerda."""
     def __init__(self, text, parent=None):
-        super().__init__(text.upper(), parent)
-        self.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        super().__init__(text, parent)
+        font = QFont("Segoe UI", 13)
+        font.setWeight(QFont.Weight.Bold)
+        font.setPixelSize(14)
+        self.setFont(font)
         self.setStyleSheet(f"""
             QLabel {{
                 color: {PRETO_TITULO};

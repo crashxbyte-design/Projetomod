@@ -129,7 +129,7 @@ def _chart_desempenho(indicadores):
 
 
 def _chart_evolucao(sub_raw):
-    """Barras agrupadas por mês (todos os meses com dados) — 2025 vs 2026."""
+    """Barras agrupadas — 2025 vs 2026. Layout executivo limpo."""
     import numpy as np
 
     def _total_mes(ano, mes):
@@ -139,90 +139,113 @@ def _chart_evolucao(sub_raw):
     vals25 = [_total_mes(2025, m) for m in MESES_FULL]
     vals26 = [_total_mes(2026, m) for m in MESES_FULL]
 
-    # Filtrar apenas meses que têm algum dado
-    meses_com_dado = [i for i in range(12) if vals25[i] or vals26[i]]
+    # Mostrar todos os 12 meses — meses futuros ficam em zero (leitura completa do ano)
+    meses_exibir = list(range(12))
+    abrevs  = [MESES_ABREV[i] for i in meses_exibir]
+    v25_flt = [vals25[i] for i in meses_exibir]
+    v26_flt = [vals26[i] for i in meses_exibir]
 
-    if not meses_com_dado:
-        fig, ax = plt.subplots(figsize=(6.0, 3.8), dpi=92)
-        fig.patch.set_facecolor("#FFFFFF")
-        ax.text(0.5, 0.5, "Dados insuficientes\npara exibir o comparativo",
-                ha="center", va="center", color="#94A3B8", fontsize=10,
-                multialignment="center")
-        ax.axis("off")
-        return fig
-
-    abrevs  = [MESES_ABREV[i] for i in meses_com_dado]
-    v25_flt = [vals25[i] for i in meses_com_dado]
-    v26_flt = [vals26[i] for i in meses_com_dado]
-
-    fig, ax = plt.subplots(figsize=(6.0, 3.8), dpi=92)
+    fig, ax = plt.subplots(figsize=(6.4, 3.6), dpi=92)
     fig.patch.set_facecolor("#FFFFFF")
-    ax.set_facecolor("#FFFFFF")
+    ax.set_facecolor("#FAFAFA")
 
-    x = np.arange(len(abrevs))
-    w = 0.38
-    bars25 = ax.bar(x - w/2, v25_flt, width=w, color="#94A3B8",
-                    label="■  2025", edgecolor="none", zorder=3)
-    bars26 = ax.bar(x + w/2, v26_flt, width=w, color="#B91C1C",
-                    label="■  2026", edgecolor="none", zorder=3)
+    x = np.arange(12)
+    w = 0.32
 
+    # Barras 2025 — cinza Slate suave
+    bars25 = ax.bar(x - w/2, v25_flt, width=w,
+                    color="#CBD5E1", label="2025",
+                    edgecolor="none", zorder=3)
+    # Barras 2026 — crimson
+    bars26 = ax.bar(x + w/2, v26_flt, width=w,
+                    color="#C8102E", label="2026",
+                    edgecolor="none", zorder=3, alpha=0.92)
+
+    # Eixos
     ax.set_xticks(x)
-    ax.set_xticklabels(abrevs, fontsize=8, fontweight="bold", color="#64748B")
-    ax.tick_params(axis="y", labelsize=7, colors="#94A3B8")
+    ax.set_xticklabels(abrevs, fontsize=7.5, color="#64748B")
+    ax.tick_params(axis="y", labelsize=7, colors="#CBD5E1")
     ax.tick_params(axis="both", length=0)
     for sp in ax.spines.values():
         sp.set_visible(False)
-    ax.yaxis.grid(True, color="#F1F5F9", linewidth=1.0, zorder=0)
+    ax.yaxis.grid(True, color="#F1F5F9", linewidth=0.8, zorder=0)
     ax.set_axisbelow(True)
 
-    # Labels nas barras (apenas se houver valor)
-    max_v = max(v25_flt + v26_flt) if (v25_flt + v26_flt) else 1
+    # Rótulos apenas nos meses com dados (> 0)
+    max_v = max(v25_flt + v26_flt) if any(v25_flt + v26_flt) else 1
     for bar in list(bars25) + list(bars26):
         h = bar.get_height()
         if h > 0:
-            ax.text(bar.get_x() + bar.get_width()/2, h + max_v * 0.02,
+            ax.text(bar.get_x() + bar.get_width() / 2, h + max_v * 0.025,
                     f"{int(h)}", ha="center", va="bottom",
-                    fontsize=7, fontweight="bold", color="#334155")
+                    fontsize=6.5, fontweight="bold", color="#475569")
+
+    # Linha de tendência leve entre os picos de 2026
+    meses_com_26 = [i for i, v in enumerate(v26_flt) if v > 0]
+    if len(meses_com_26) >= 2:
+        import matplotlib.lines as mlines
+        xs = [x[i] + w/2 for i in meses_com_26]
+        ys = [v26_flt[i] for i in meses_com_26]
+        ax.plot(xs, ys, color="#C8102E", linewidth=1.2, linestyle="--",
+                alpha=0.4, zorder=4)
+
+    # Legenda inline no canto superior direito
+    import matplotlib.patches as mpatches
+    leg = ax.legend(
+        handles=[
+            mpatches.Patch(facecolor="#CBD5E1", label="2025"),
+            mpatches.Patch(facecolor="#C8102E", label="2026"),
+        ],
+        loc="upper right", fontsize=8, frameon=False, labelcolor="#475569"
+    )
 
     # Variação acumulada
     total25 = sum(v25_flt)
     total26 = sum(v26_flt)
     if total25 > 0:
         var_pct = (total26 - total25) / total25 * 100
-        var_txt = f"▼ {abs(var_pct):.0f}%" if var_pct < 0 else f"▲ {var_pct:.0f}%"
-        var_cor = "#EF4444" if var_pct < 0 else "#10B981"
+        seta    = "▼" if var_pct < 0 else "▲"
+        var_cor = "#DC2626" if var_pct < 0 else "#059669"
+        msg_cor = "#DC2626" if var_pct < 0 else "#059669"
         comp_msg = "Desempenho 2026 abaixo de 2025" if var_pct < 0 else "Desempenho 2026 acima de 2025"
-        ax.text(0.0, -0.22, f"Variação acumulada (Jan–{abrevs[-1]}):  ",
-                transform=ax.transAxes, fontsize=7.5, color="#64748B", ha="left")
-        ax.text(0.52, -0.22, var_txt,
-                transform=ax.transAxes, fontsize=7.5, color=var_cor,
-                fontweight="bold", ha="left")
-        ax.text(1.0, -0.22, comp_msg,
-                transform=ax.transAxes, fontsize=7.5, color="#B91C1C",
-                fontweight="bold", ha="right")
+        # Linha separadora
+        ax.axhline(0, color="#E2E8F0", linewidth=0.8)
+        ax.annotate(
+            f"  Variação acumulada (Jan–{abrevs[max(meses_com_26, default=1)]}):",
+            xy=(0.0, -0.20), xycoords="axes fraction",
+            fontsize=7, color="#64748B", ha="left"
+        )
+        ax.annotate(
+            f"  {seta} {abs(var_pct):.0f}%",
+            xy=(0.52, -0.20), xycoords="axes fraction",
+            fontsize=7.5, color=var_cor, fontweight="bold", ha="left"
+        )
+        ax.annotate(
+            comp_msg,
+            xy=(1.0, -0.20), xycoords="axes fraction",
+            fontsize=7, color=msg_cor, ha="right"
+        )
 
-    ax.legend(fontsize=8, frameon=False, loc="upper right",
-              labelcolor="#475569", handlelength=1)
-    ax.set_title("COMPARAÇÃO MENSAL  –  2025 x 2026", fontsize=9.5,
-                 fontweight="bold", color="#0F172A", pad=10, loc="left")
-    fig.tight_layout(pad=0.7)
+    ax.set_title("COMPARAÇÃO MENSAL  –  2025 × 2026", fontsize=9.5,
+                 fontweight="bold", color="#0F172A", pad=12, loc="left")
+    fig.tight_layout(pad=0.6)
     return fig
 
 
 def _chart_donut(stats):
-    """Donut – distribuição de status dos indicadores."""
-    fig, ax = plt.subplots(figsize=(3.0, 3.6), dpi=92)
+    """Donut executivo refinado — distribuição por status."""
+    fig, ax = plt.subplots(figsize=(4.4, 3.8), dpi=92)
     fig.patch.set_facecolor("#FFFFFF")
 
-    # Ordem e cores da referência visual
+    # Paleta da referência: cinza=Atenção, laranja-vermelho=Abaixo, verde=Dentro, creme=Sem meta
     labels = ["Em Atenção", "Abaixo da Meta", "Dentro da Meta", "Sem Meta / Pendente"]
     values = [
         stats["em_atencao"],
         stats.get("abaixo_meta", 0),
-        stats["com_meta"],
+        stats.get("atingidas", stats["com_meta"]),
         stats["sem_meta"],
     ]
-    colors = ["#94A3B8", "#E11D48", "#10B981", "#E2E8F0"]
+    colors = ["#94A3B8", "#C8102E", "#10B981", "#E2E8F0"]
 
     pairs = [(l, v, c) for l, v, c in zip(labels, values, colors) if v > 0]
     if not pairs:
@@ -233,29 +256,40 @@ def _chart_donut(stats):
 
     wedges, _, autotexts = ax.pie(
         vs, labels=None, colors=cs, autopct="%1.0f%%",
-        startangle=90, wedgeprops={"edgecolor": "#FFFFFF", "linewidth": 3},
-        pctdistance=0.72
+        startangle=90,
+        wedgeprops={"edgecolor": "#FFFFFF", "linewidth": 4,
+                    "antialiased": True},
+        pctdistance=0.76
     )
     for t in autotexts:
-        t.set_fontsize(8); t.set_color("#FFFFFF"); t.set_fontweight("bold")
+        t.set_fontsize(9)
+        t.set_fontweight("bold")
+        t.set_color("#FFFFFF")
 
-    ax.add_patch(plt.Circle((0, 0), 0.55, color="#FFFFFF"))
+    # Buraco do donut mais largo — visual mais elegante
+    ax.add_patch(plt.Circle((0, 0), 0.58, color="#FFFFFF"))
 
-    ax.text(0, 0.12, str(total), ha="center", va="center",
-            fontsize=26, fontweight="bold", color="#0F172A")
+    # Texto central
+    ax.text(0, 0.15, str(total), ha="center", va="center",
+            fontsize=28, fontweight="bold", color="#0F172A")
     ax.text(0, -0.18, "Total de\nIndicadores", ha="center", va="center",
-            fontsize=7, color="#64748B", multialignment="center")
+            fontsize=7, color="#94A3B8", multialignment="center",
+            fontstyle="italic")
 
-    # Legenda lateral direita
-    legend_items = [f"{l}  ({v})" for l, v in zip(ls, vs)]
+    # Legenda à direita do donut — não some ao maximizar
     ax.legend(
-        wedges, legend_items,
-        loc="lower center", bbox_to_anchor=(0.5, -0.16),
-        fontsize=7, frameon=False, ncol=1, labelcolor="#475569"
+        wedges,
+        [f"{l} ({v})" for l, v in zip(ls, vs)],
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        fontsize=8, frameon=False, labelcolor="#334155",
+        handlelength=1.0, handleheight=0.9,
+        borderpad=0, labelspacing=0.8
     )
     ax.set_title("DISTRIBUIÇÃO POR STATUS", fontsize=9,
-                 fontweight="bold", color="#0F172A", pad=10, loc="left")
-    fig.tight_layout(pad=0.5)
+                 fontweight="bold", color="#0F172A", pad=14, loc="left")
+    # Espaço reservado para legenda sem cortar
+    fig.subplots_adjust(left=0.02, right=0.56, top=0.88, bottom=0.05)
     return fig
 
 
@@ -266,7 +300,7 @@ def _chart_donut(stats):
 class _KPICard(QFrame):
     def __init__(self, icon, label, value, sub, icon_color, icon_bg, val_color, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(200)
+        self.setMinimumWidth(180)
         self.setMinimumHeight(120)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.setStyleSheet("""
@@ -276,52 +310,63 @@ class _KPICard(QFrame):
                 border-radius: 12px;
             }
         """)
-        self.setGraphicsEffect(shadow(12, (0,4), (0,0,0,6)))
-        ly = QHBoxLayout(self)
-        ly.setContentsMargins(20, 20, 20, 20)
+        self.setGraphicsEffect(shadow(14, (0, 4), (0, 0, 0, 8)))
+
+        root_ly = QVBoxLayout(self)
+        root_ly.setContentsMargins(0, 0, 0, 0)
+        root_ly.setSpacing(0)
+
+        # Conteúdo principal
+        content = QWidget()
+        content.setStyleSheet("background: transparent; border: none;")
+        ly = QHBoxLayout(content)
+        ly.setContentsMargins(20, 20, 20, 16)
         ly.setSpacing(16)
-        
-        # Left side - Icon
+
+        # Lado esquerdo — ícone circular
         ico_container = QFrame()
-        ico_container.setFixedSize(56, 56)
-        ico_container.setStyleSheet(f"background: {icon_bg}; border-radius: 28px; border: none;")
+        ico_container.setFixedSize(54, 54)
+        ico_container.setStyleSheet(f"background: {icon_bg}; border-radius: 27px; border: none;")
         ico_ly = QVBoxLayout(ico_container)
         ico_ly.setContentsMargins(0, 0, 0, 0)
         ico_lbl = QLabel(icon)
-        ico_lbl.setFont(QFont("Segoe UI Emoji", 20))
+        ico_lbl.setFont(QFont("Segoe UI Emoji", 18))
         ico_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ico_lbl.setStyleSheet(f"background: transparent; color: {icon_color}; border: none;")
         ico_ly.addWidget(ico_lbl)
-        
         ly.addWidget(ico_container)
-        
-        # Right side - Texts
+
+        # Lado direito — textos
         text_col = QVBoxLayout()
         text_col.setSpacing(2)
         text_col.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        
-        t = QLabel(label.upper())
+
+        t = QLabel(label.upper().replace('\n', ' '))
         t.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        t.setStyleSheet("color:#64748B; background:transparent; border:none; letter-spacing:0.5px;")
+        t.setStyleSheet("color: #6B7280; background: transparent; border: none; letter-spacing: 0.5px;")
         t.setWordWrap(True)
         text_col.addWidget(t)
 
         v = QLabel(str(value))
-        v.setFont(QFont("Segoe UI", 36, QFont.Weight.Bold))
-        v.setStyleSheet(f"color:{val_color}; background:transparent; border:none; line-height: 1;")
+        v.setFont(QFont("Segoe UI", 44, QFont.Weight.Bold))
+        v.setStyleSheet(f"color: {val_color}; background: transparent; border: none;")
         text_col.addWidget(v)
 
         if sub:
-            sep = QFrame()
-            sep.setFrameShape(QFrame.Shape.HLine)
-            sep.setStyleSheet(f"background:{icon_color}; border:none; max-height:2px; margin: 4px 0px;")
-            text_col.addWidget(sep)
             s = QLabel(sub)
             s.setFont(QFont("Segoe UI", 8))
-            s.setStyleSheet("color:#64748B; background:transparent; border:none;")
+            s.setStyleSheet("color: #9CA3AF; background: transparent; border: none;")
             text_col.addWidget(s)
 
         ly.addLayout(text_col, 1)
+        root_ly.addWidget(content, 1)
+
+        # Linha accent colorida na base do card
+        accent = QFrame()
+        accent.setFixedHeight(3)
+        accent.setStyleSheet(f"background: {val_color}; border: none; border-radius: 0px; "
+                              f"border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;")
+        root_ly.addWidget(accent)
 
 
 class _DestaqueItem(QWidget):
@@ -419,11 +464,20 @@ class PainelExecutivoPanel(QWidget):
         row1.setSpacing(16)
 
         kpi_data = [
-            ("📋", "Total de\nIndicadores", stats["total"],     "100% do total",         "#B91C1C", "#FEE2E2", "#B91C1C"),
-            ("🎯", "Indicadores\nCom Meta",  stats["com_meta"], f"{(stats['com_meta']/max(stats['total'],1)*100):.0f}% do total", "#1E293B", "#F1F5F9", "#0F172A"),
-            ("✅", "Metas\nAtingidas",       stats["com_meta"], f"{(stats['com_meta']/max(stats['total'],1)*100):.0f}% das metas", "#10B981", "#D1FAE5", "#10B981"),
-            ("⚠️", "Em\nAtenção",            stats["em_atencao"], f"{(stats['em_atencao']/max(stats['total'],1)*100):.0f}% das metas", "#F59E0B", "#FEF3C7", "#F59E0B"),
-            ("⬇️", "Abaixo\nDa Meta",        0,                 "0% das metas",          "#EF4444", "#FEE2E2", "#EF4444"),
+            ("#",  "Total de Indicadores",  stats["total"],
+             "100% do total", "#C8102E", "#FDECEA", "#C8102E"),
+            ("◎",  "Indicadores Com Meta",   stats["com_meta"],
+             f"{(stats['com_meta']/max(stats['total'],1)*100):.0f}% do total",
+             "#334155", "#F1F5F9", "#0F172A"),
+            ("+",  "Metas Atingidas",         stats.get("atingidas", 0),
+             f"{(stats.get('atingidas',0)/max(stats['total'],1)*100):.0f}% das metas",
+             "#059669", "#D1FAE5", "#059669"),
+            ("△",  "Em Atenção",             stats["em_atencao"],
+             f"{(stats['em_atencao']/max(stats['total'],1)*100):.0f}% das metas",
+             "#D97706", "#FEF3C7", "#D97706"),
+            ("↓",  "Abaixo da Meta",          stats.get("abaixo_meta", 0),
+             f"{(stats.get('abaixo_meta',0)/max(stats['total'],1)*100):.0f}% das metas",
+             "#DC2626", "#FEE2E2", "#DC2626"),
         ]
         for idx, (ico, lbl, val, sub, ico_c, ico_bg, val_c) in enumerate(kpi_data):
             c = _KPICard(ico, lbl, val, sub, ico_c, ico_bg, val_c)
@@ -444,12 +498,36 @@ class PainelExecutivoPanel(QWidget):
         r_ly.setSpacing(0)
         
         rh_frame = QFrame()
-        rh_frame.setStyleSheet("background:transparent;border:none;border-bottom:1px solid #E2E8F0;")
-        rh_ly = QHBoxLayout(rh_frame); rh_ly.setContentsMargins(20, 16, 20, 16)
-        r_lbl = QLabel("📄 RESUMO EXECUTIVO")
-        r_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        r_lbl.setStyleSheet("color:#1E293B;letter-spacing:1px;background:transparent;border:none;")
-        rh_ly.addWidget(r_lbl); rh_ly.addStretch()
+        rh_frame.setStyleSheet("""
+            background: #F8FAFC;
+            border: none;
+            border-bottom: 1px solid #E2E8F0;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        """)
+        rh_ly = QHBoxLayout(rh_frame)
+        rh_ly.setContentsMargins(20, 14, 20, 14)
+        r_lbl = QLabel("RESUMO EXECUTIVO")
+        r_lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        r_lbl.setStyleSheet("""
+            color: #0F172A;
+            letter-spacing: 1.2px;
+            background: transparent;
+            border: none;
+        """)
+        rh_ly.addWidget(r_lbl)
+        rh_ly.addStretch()
+        # Badge do período
+        periodo_badge = QLabel(stats.get("periodo", "Jan–Fev/2026"))
+        periodo_badge.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        periodo_badge.setStyleSheet("""
+            color: #C8102E;
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            border-radius: 10px;
+            padding: 2px 10px;
+        """)
+        rh_ly.addWidget(periodo_badge)
         r_ly.addWidget(rh_frame)
 
         r_body = QWidget()
@@ -458,37 +536,57 @@ class PainelExecutivoPanel(QWidget):
         rb.setContentsMargins(20,16,20,20)
         rb.setSpacing(12)
         
-        periodo = stats.get("periodo","Jan a Fev/2026")
+        periodo = stats.get("periodo", "Jan a Fev/2026")
+        pct_atencao = (stats['em_atencao']/max(stats['total'],1)*100)
+        pct_abaixo  = (stats.get('abaixo_meta',0)/max(stats['total'],1)*100)
         txt = QLabel(
-            f"No período de {periodo}, o desempenho geral apresenta {(stats['em_atencao']/max(stats['total'],1)*100):.0f}% dos "
-            f"indicadores em atenção. Nenhum indicador abaixo da meta."
+            f"No período de {periodo}, o desempenho geral apresenta "
+            f"{pct_atencao:.0f}% dos indicadores em atenção e "
+            f"{pct_abaixo:.0f}% abaixo da meta."
         )
         txt.setFont(QFont("Segoe UI", 9))
-        txt.setStyleSheet("color:#475569; background:transparent; border:none; line-height: 1.4;")
+        txt.setStyleSheet("color:#475569; background:transparent; border:none;")
         txt.setWordWrap(True)
         rb.addWidget(txt)
-        
-        # Bullets do Resumo
-        bullets = [
-            ("🎯", f"<b>{stats['com_meta']} indicadores monitorados</b><br><span style='color:#64748B; font-size:11px;'>100% possuem meta definida</span>"),
-            ("⚠️", f"<b>{stats['em_atencao']} indicador em atenção</b><br><span style='color:#64748B; font-size:11px;'>Acompanhamento recomendado</span>"),
-            ("⬇️", "<b>0 indicadores abaixo da meta</b><br><span style='color:#64748B; font-size:11px;'>Ação imediata necessária</span>"),
-            ("ℹ️", f"<b>{stats['com_meta']} indicadores atingiram a meta</b><br><span style='color:#64748B; font-size:11px;'>Foque nas ações corretivas</span>"),
-        ]
-        
-        for ico, text in bullets:
-            b_item = QWidget()
-            b_ly = QHBoxLayout(b_item)
-            b_ly.setContentsMargins(0,4,0,4)
-            b_ly.setSpacing(12)
-            i_lbl = QLabel(ico)
-            i_lbl.setFont(QFont("Segoe UI Emoji", 14))
-            t_lbl = QLabel(text)
-            t_lbl.setFont(QFont("Segoe UI", 9))
-            t_lbl.setStyleSheet("color:#334155; background:transparent; border:none;")
-            b_ly.addWidget(i_lbl)
-            b_ly.addWidget(t_lbl, 1)
-            rb.addWidget(b_item)
+
+        # Bullets do Resumo com ícones circulares desenhados (sem emoji)
+        def _bullet_row(color, bold_text, light_text):
+            item = QWidget()
+            item.setStyleSheet("background: transparent; border: none;")
+            hl = QHBoxLayout(item)
+            hl.setContentsMargins(0, 5, 0, 5)
+            hl.setSpacing(12)
+            # Círculo colorido
+            dot = QLabel()
+            dot.setFixedSize(22, 22)
+            dot.setStyleSheet(f"""
+                background: {color}15;
+                border: 2px solid {color};
+                border-radius: 11px;
+            """)
+            hl.addWidget(dot)
+            # Texto
+            txt_col = QVBoxLayout()
+            txt_col.setSpacing(0)
+            b = QLabel(bold_text)
+            b.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+            b.setStyleSheet(f"color: #1E293B; background:transparent; border:none;")
+            l = QLabel(light_text)
+            l.setFont(QFont("Segoe UI", 8))
+            l.setStyleSheet("color: #64748B; background:transparent; border:none;")
+            txt_col.addWidget(b)
+            txt_col.addWidget(l)
+            hl.addLayout(txt_col, 1)
+            return item
+
+        rb.addWidget(_bullet_row("#374151", f"{stats['com_meta']} indicadores monitorados",
+                                 "100% possuem meta definida"))
+        rb.addWidget(_bullet_row("#D97706", f"{stats['em_atencao']} indicador em atenção",
+                                 "Acompanhamento recomendado"))
+        rb.addWidget(_bullet_row("#DC2626", f"{stats.get('abaixo_meta',0)} indicador abaixo da meta",
+                                 "Ação imediata necessária"))
+        rb.addWidget(_bullet_row("#2563EB", f"{stats.get('atingidas',0)} indicadores atingiram a meta",
+                                 "Foque nas ações corretivas"))
 
         rb.addStretch()
         r_ly.addWidget(r_body, 1)
@@ -497,17 +595,17 @@ class PainelExecutivoPanel(QWidget):
         def _wrap_chart(fig, stretch=1):
             f = _card_frame()
             ly = QVBoxLayout(f)
-            ly.setContentsMargins(4,4,4,4)
+            ly.setContentsMargins(4, 4, 4, 4)
             canvas = FigureCanvas(fig)
             canvas.setStyleSheet("background:transparent; border:none;")
             ly.addWidget(canvas)
             row2.addWidget(f, stretch)
 
         if HAS_MPL:
-            _wrap_chart(_chart_desempenho(inds), stretch=3)
-            _wrap_chart(_chart_evolucao(sub_raw), stretch=3)
-            _wrap_chart(_chart_donut(stats), stretch=2)
-            
+            # 3 colunas como na referência: Comparativo + Donut
+            _wrap_chart(_chart_evolucao(sub_raw), stretch=4)
+            _wrap_chart(_chart_donut(stats),       stretch=2)
+
         main.addLayout(row2)
 
         # ── LINHA 3: Destaques | Ranking | Pendências ──────────────────────
