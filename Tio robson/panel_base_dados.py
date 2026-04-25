@@ -1,67 +1,36 @@
 """
-panel_base_dados.py - Tela Base de Dados com backend SQLite real.
+panel_base_dados.py - Tela Base de Dados com abas para Indicadores e Subindicadores.
 """
-import os
-import openpyxl
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QScrollArea, QPushButton, QSizePolicy, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView,
-    QTextEdit, QCheckBox, QComboBox, QLineEdit, QMessageBox,
-    QSplitter, QDialog, QFileDialog
+    QScrollArea, QPushButton, QTableWidget, QTableWidgetItem,
+    QHeaderView, QAbstractItemView, QTextEdit, QCheckBox,
+    QComboBox, QLineEdit, QMessageBox, QSplitter, QTabWidget
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor
 
 import database as db
+from panel_historico import HistoricoPanel
+from panel_analise_critica import AnaliseCriticaPanel
+from panel_config import ConfigPanel
 from styles import (
     VERMELHO, VERMELHO_ESC, BRANCO, CINZA_BG, CINZA_BORDA,
-    CINZA_SUAVE, PRETO_TITULO, VERDE, LARANJA, PENDENTE_FG
+    CINZA_SUAVE, PRETO_TITULO, VERDE, LARANJA
 )
 from widgets import shadow
-from mapping_db import STATUS_MAPEADO, STATUS_PENDENTE_PROCESSO, STATUS_PENDENTE_CONTROLE, STATUS_SEM_VINCULO
 
-STATUS_LIST = [STATUS_MAPEADO, STATUS_PENDENTE_PROCESSO, STATUS_PENDENTE_CONTROLE, STATUS_SEM_VINCULO]
-STATUS_CORES = {
-    STATUS_MAPEADO:           (VERDE,       "#E8F5E9"),
-    STATUS_PENDENTE_PROCESSO: (LARANJA,     "#FFF3E0"),
-    STATUS_PENDENTE_CONTROLE: (PENDENTE_FG, "#FFEBEE"),
-    STATUS_SEM_VINCULO:       (CINZA_SUAVE, "#F5F5F5"),
-}
 
-def _kpi(icon, title, value, sub, ic, bg):
-    f = QFrame()
-    f.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-    f.setGraphicsEffect(shadow(6,(0,2),(0,0,0,10)))
-    f.setMinimumWidth(140)
-    ly = QHBoxLayout(f); ly.setContentsMargins(14,12,14,12); ly.setSpacing(12)
-    ico = QFrame(); ico.setFixedSize(44,44)
-    ico.setStyleSheet(f"background:{bg};border-radius:22px;border:none;")
-    il = QVBoxLayout(ico); il.setContentsMargins(0,0,0,0)
-    il2 = QLabel(icon); il2.setFont(QFont("Segoe UI Emoji",20))
-    il2.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    il2.setStyleSheet(f"color:{ic};background:transparent;border:none;")
-    il.addWidget(il2); ly.addWidget(ico)
-    tl = QVBoxLayout(); tl.setSpacing(2)
-    t = QLabel(title.upper()); t.setFont(QFont("Segoe UI",7,QFont.Weight.Bold))
-    t.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-    v = QLabel(str(value)); v.setFont(QFont("Segoe UI",20,QFont.Weight.Bold))
-    v.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-    s = QLabel(sub); s.setFont(QFont("Segoe UI",8))
-    s_color = CINZA_SUAVE if ic == BRANCO else ic 
-    s.setStyleSheet(f"color:{s_color};background:transparent;border:none;")
-    for w in [t,v,s]: tl.addWidget(w)
-    ly.addLayout(tl); return f
-
-def _btn(txt, primary=False, outline_color=CINZA_BORDA, danger=False):
-    b = QPushButton(txt); b.setFixedHeight(34)
-    b.setFont(QFont("Segoe UI",9,QFont.Weight.Bold if primary or danger else QFont.Weight.Normal))
+def _btn(txt, primary=False, danger=False):
+    b = QPushButton(txt); b.setFixedHeight(36)
+    b.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
     if primary:
-        b.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:{BRANCO};border:none;border-radius:5px;padding:0 14px;}}QPushButton:hover{{background:{VERMELHO};}}")
+        b.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:{BRANCO};border:none;border-radius:6px;padding:0 20px;}}QPushButton:hover{{background:{VERMELHO};}}")
     elif danger:
-        b.setStyleSheet(f"QPushButton{{background:{BRANCO};color:{VERMELHO_ESC};border:1px solid {VERMELHO_ESC};border-radius:5px;padding:0 14px;}}QPushButton:hover{{background:#FFEBEE;}}")
+        b.setStyleSheet(f"QPushButton{{background:transparent;color:{VERMELHO_ESC};border:1px solid {VERMELHO_ESC};border-radius:6px;padding:0 20px;}}QPushButton:hover{{background:#FFEBEE;}}")
     else:
-        b.setStyleSheet(f"QPushButton{{background:{BRANCO};color:{PRETO_TITULO};border:1px solid {outline_color};border-radius:5px;padding:0 14px;}}QPushButton:hover{{background:#F5F5F5;}}")
+        b.setStyleSheet(f"QPushButton{{background:#F6F8FA;color:#24292F;border:1px solid #D0D7DE;border-radius:6px;padding:0 20px;}}QPushButton:hover{{background:#F3F4F6;}}")
     return b
 
 class _FieldRow(QWidget):
@@ -71,14 +40,14 @@ class _FieldRow(QWidget):
         ly = QVBoxLayout(self); ly.setContentsMargins(0,0,0,0); ly.setSpacing(3)
         if label:
             lbl = QLabel(label)
-            lbl.setFont(QFont("Segoe UI",8))
+            lbl.setFont(QFont("Segoe UI", 8))
             lbl.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
             ly.addWidget(lbl)
         ly.addWidget(widget)
 
 def _section_lbl(txt):
     l = QLabel(txt)
-    l.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
+    l.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
     l.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;letter-spacing:0.5px;")
     return l
 
@@ -87,496 +56,472 @@ class BaseDadosPanel(QWidget):
     def __init__(self, data, parent=None):
         super().__init__(parent)
         self.data = data
-        self._current_codigo = None
-        self._original_record = None
-        self._available_sheets = set()
         self._build_ui()
-        self._load_table()
-        if self.table.rowCount() > 0:
-            self.table.selectRow(0)
+        self._load_indicadores_table()
+        self._load_subindicadores_combos()
+        self._load_subindicadores_table()
 
-    # ── UI ──────────────────────────────────────────────────────────────────
+    # ── UI BUILDER ────────────────────────────────────────────────────────
     def _build_ui(self):
         root = QVBoxLayout(self); root.setContentsMargins(0,0,0,0); root.setSpacing(0)
-        scroll = QScrollArea(); scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        root.addWidget(scroll)
-        container = QWidget(); container.setStyleSheet(f"background:{CINZA_BG};")
-        scroll.setWidget(container)
-        main = QVBoxLayout(container); main.setContentsMargins(24,20,24,24); main.setSpacing(16)
+        
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet(f"""
+            QTabWidget::pane {{ border: none; background: transparent; border-top: 1px solid #E0E0E0; }}
+            QTabBar::tab {{ background: transparent; border: none; border-bottom: 2px solid transparent; padding: 12px 24px; color: #757575; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; margin-right: 4px; }}
+            QTabBar::tab:hover {{ color: #424242; }}
+            QTabBar::tab:selected {{ color: {VERMELHO_ESC}; border-bottom: 2px solid {VERMELHO_ESC}; }}
+        """)
+        root.addWidget(self.tabs)
 
-        # KPI Row
-        self.kpi_row = QHBoxLayout(); self.kpi_row.setSpacing(14)
-        main.addLayout(self.kpi_row)
-        self._refresh_kpis()
+        self.tab_ind = QWidget()
+        self.tab_sub = QWidget()
+        self.tab_hist = HistoricoPanel(self.data)
+        self.tab_analise = AnaliseCriticaPanel(self.data)
+        self.tab_config = ConfigPanel(self.data)
 
+        self.tabs.addTab(self.tab_ind, "Indicadores Principais")
+        self.tabs.addTab(self.tab_sub, "Subindicadores")
+        self.tabs.addTab(self.tab_hist, "Histórico Mensal")
+        self.tabs.addTab(self.tab_analise, "Análise Crítica")
+        self.tabs.addTab(self.tab_config, "Configurações")
+
+        self._build_tab_indicadores()
+        self._build_tab_subindicadores()
+
+        # Connect tab change to refresh contents
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+
+    def _on_tab_changed(self, index):
+        if index == 1: # Subindicadores
+            self._load_subindicadores_combos()
+            self._load_subindicadores_table()
+        elif index == 2: # Histórico
+            if hasattr(self.tab_hist, '_populate_selector'):
+                self.tab_hist._populate_selector()
+        elif index == 3: # Análise
+            if hasattr(self.tab_analise, '_populate_selector'):
+                self.tab_analise._populate_selector()
+
+    def _build_tab_indicadores(self):
+        ly = QVBoxLayout(self.tab_ind); ly.setContentsMargins(20,20,20,20); ly.setSpacing(16)
+        
         # Toolbar
-        tb = QHBoxLayout(); tb.setSpacing(10)
-        self.btn_import   = _btn("📗  Importar do Excel")
-        self.btn_refresh  = _btn("🔄  Atualizar Vínculos")
-        self.btn_new      = _btn("＋  Novo Registro", primary=True)
-        for b in [self.btn_import, self.btn_refresh, self.btn_new]:
-            tb.addWidget(b)
-        
+        tb = QHBoxLayout()
+        self.btn_new_ind = _btn("＋  Novo Indicador", primary=True)
+        tb.addWidget(self.btn_new_ind)
         tb.addStretch()
-        
-        self.f_busca = QLineEdit()
-        self.f_busca.setPlaceholderText("🔍 Buscar indicador ou código...")
-        self.f_busca.setFont(QFont("Segoe UI",9))
-        self.f_busca.setFixedHeight(34)
-        self.f_busca.setMinimumWidth(260)
-        self.f_busca.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:0 8px;}}")
-        tb.addWidget(self.f_busca)
-        
-        main.addLayout(tb)
+        self.lbl_status_ind = QLabel("")
+        self.lbl_status_ind.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        tb.addWidget(self.lbl_status_ind)
+        ly.addLayout(tb)
 
-        # Splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setStyleSheet("QSplitter::handle{background:transparent;}")
-        splitter.setHandleWidth(12)
-
+        
         # Tabela
-        tf = QFrame()
-        tf.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        tf.setGraphicsEffect(shadow(6,(0,2),(0,0,0,10)))
-        tl = QVBoxLayout(tf); tl.setContentsMargins(0,0,0,0)
-
-        COLS = ["Código","Indicador","Usa Dados\nOperacionais","Aba Origem",
-                "Campo Origem","Resultado\nRepresenta","Subindicadores",
-                "Status do Mapeamento","Observações"]
-        self.table = QTableWidget(0, len(COLS))
-        self.table.setHorizontalHeaderLabels(COLS)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setAlternatingRowColors(True)
-        self.table.setStyleSheet(f"""
-            QTableWidget{{border:none;font-size:9pt;gridline-color:{CINZA_BORDA};}}
-            QTableWidget::item{{padding:5px 8px;color:{PRETO_TITULO};}}
-            QTableWidget::item:selected{{background:#FFEBEE;color:{PRETO_TITULO};}}
-            QHeaderView::section{{background:{VERMELHO_ESC};color:{BRANCO};font-weight:bold;
-                font-size:8pt;padding:7px 8px;border:none;border-right:1px solid #8B0000;}}
-            QTableWidget::item:alternate{{background:#FAFAFA;}}
+        self.tbl_ind = QTableWidget(0, 6)
+        self.tbl_ind.setHorizontalHeaderLabels(["Código", "Indicador", "Tipo", "Periodicidade", "Meta", "Ativo"])
+        self.tbl_ind.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tbl_ind.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tbl_ind.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tbl_ind.verticalHeader().setVisible(False)
+        self.tbl_ind.setAlternatingRowColors(True)
+        self.tbl_ind.setStyleSheet(f"""
+            QTableWidget {{ border: 1px solid #E1E4E8; border-radius: 6px; font-size: 9pt; background: {BRANCO}; gridline-color: transparent; }}
+            QTableWidget::item {{ padding: 6px 12px; color: #24292F; border-bottom: 1px solid #EAECEF; }}
+            QTableWidget::item:selected {{ background: #F0F7FF; color: #0366D6; }}
+            QHeaderView::section {{ background: #F6F8FA; color: #57606A; font-weight: bold; font-size: 9pt; padding: 10px; border: none; border-bottom: 1px solid #D0D7DE; border-right: 1px solid #E1E4E8; }}
+            QTableWidget::item:alternate {{ background: #F8F9FA; }}
         """)
-        hdr = self.table.horizontalHeader()
-        widths = [110,0,80,100,120,100,80,130,120]
-        for i, w in enumerate(widths):
-            if w == 0: hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
-            else:      hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.Fixed); self.table.setColumnWidth(i, w)
-        tl.addWidget(self.table)
-        
-        # Paginação Footer
-        pag_ly = QHBoxLayout()
-        pag_ly.setContentsMargins(12, 6, 12, 6)
-        self.footer_lbl = QLabel("")
-        self.footer_lbl.setFont(QFont("Segoe UI",8))
-        self.footer_lbl.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-        pag_ly.addWidget(self.footer_lbl)
-        pag_ly.addStretch()
-        
-        for ptxt in ["Primeiro", "< Anterior", "1", "Próximo >", "Último"]:
-            pb = QPushButton(ptxt)
-            pb.setFont(QFont("Segoe UI",8, QFont.Weight.Bold if ptxt == "1" else QFont.Weight.Normal))
-            pb.setFixedHeight(24)
-            if ptxt == "1":
-                pb.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:{BRANCO};border:none;border-radius:3px;padding:0 8px;}}")
-            else:
-                pb.setStyleSheet(f"QPushButton{{background:{BRANCO};color:{PRETO_TITULO};border:1px solid {CINZA_BORDA};border-radius:3px;padding:0 8px;}}QPushButton:hover{{background:#F5F5F5;}}")
-            pag_ly.addWidget(pb)
-        
-        tl.addLayout(pag_ly)
-        splitter.addWidget(tf)
+        hdr = self.tbl_ind.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        for i in range(2, 6): hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+        splitter.addWidget(self.tbl_ind)
 
-        # Painel lateral editável
-        det_frame = QFrame()
-        det_frame.setMinimumWidth(290); det_frame.setMaximumWidth(360)
-        det_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        det_frame.setGraphicsEffect(shadow(6,(0,2),(0,0,0,10)))
-        det_outer = QVBoxLayout(det_frame); det_outer.setContentsMargins(0,0,0,0); det_outer.setSpacing(0)
+        # Painel Form
+        form_frame = QFrame()
+        form_frame.setMinimumWidth(320); form_frame.setMaximumWidth(400)
+        form_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E1E4E8;border-radius:8px;}}")
+        form_frame.setGraphicsEffect(shadow(12, (0,4), (0,0,0,15)))
+        form_ly = QVBoxLayout(form_frame); form_ly.setContentsMargins(20,20,20,20); form_ly.setSpacing(12)
 
-        det_hdr = QLabel("DETALHES DO INDICADOR SELECIONADO")
-        det_hdr.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-        det_hdr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        det_hdr.setStyleSheet(f"color:{BRANCO};background:{VERMELHO_ESC};border-top-left-radius:6px;border-top-right-radius:6px;padding:9px;border:none;")
-        det_outer.addWidget(det_hdr)
-
-        det_scroll = QScrollArea(); det_scroll.setWidgetResizable(True)
-        det_scroll.setStyleSheet("border:none;background:transparent;")
-        det_inner = QWidget(); det_inner.setStyleSheet("background:transparent;")
-        self.det_ly = QVBoxLayout(det_inner); self.det_ly.setContentsMargins(16,16,16,16); self.det_ly.setSpacing(10)
-        det_scroll.setWidget(det_inner)
-        det_outer.addWidget(det_scroll, 1)
-
-        # Campos editáveis
-        def _edit(placeholder=""):
-            w = QLineEdit(); w.setPlaceholderText(placeholder)
-            w.setFont(QFont("Segoe UI",9))
-            w.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:5px 8px;color:{PRETO_TITULO};}}QLineEdit:focus{{border-color:{VERMELHO};}}")
+        def _edit():
+            w = QLineEdit()
+            w.setFixedHeight(34)
+            w.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}QLineEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
             return w
-        def _combo(editable=False):
+        def _combo():
             w = QComboBox()
-            w.setEditable(editable)
-            w.setFont(QFont("Segoe UI",9))
-            w.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 8px;color:{PRETO_TITULO};}}QComboBox:focus{{border-color:{VERMELHO};}} QComboBox::drop-down{{border:none;}}")
+            w.setFixedHeight(34)
+            w.setStyleSheet(f"QComboBox{{background:#F6F8FA;border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}QComboBox:focus{{border:1px solid {VERMELHO_ESC};}} QComboBox::drop-down{{border:none;}}")
             return w
 
-        self.f_codigo = _edit("Ex: SP.IND.012")
-        self.f_nome   = _edit("Nome do indicador")
+        self.f_ind_cod = _edit()
+        self.f_ind_nome = _edit()
+        self.f_ind_tipo = _combo(); self.f_ind_tipo.addItems(["Operacional", "Estratégico", "Tático"])
+        self.f_ind_per = _combo(); self.f_ind_per.addItems(["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"])
+        self.f_ind_uni = _edit()
+        self.f_ind_meta_txt = _edit()
+        self.f_ind_meta_num = _edit()
+        self.f_ind_menor = QCheckBox("Menor valor é melhor")
+        self.f_ind_menor.setStyleSheet("color:#24292F;")
+        self.f_ind_obs = QTextEdit(); self.f_ind_obs.setMaximumHeight(70)
+        self.f_ind_obs.setStyleSheet(f"QTextEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:6px;color:#24292F;}}QTextEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
+        self.f_ind_ativo = QCheckBox("Ativo")
+        self.f_ind_ativo.setStyleSheet("color:#24292F;font-weight:bold;")
+
+        form_ly.addWidget(_section_lbl("DADOS PRINCIPAIS"))
+        form_ly.addWidget(_FieldRow("Código do Indicador", self.f_ind_cod))
+        form_ly.addWidget(_FieldRow("Nome do Indicador", self.f_ind_nome))
+        form_ly.addWidget(_FieldRow("Tipo", self.f_ind_tipo))
+        form_ly.addWidget(_FieldRow("Periodicidade", self.f_ind_per))
+        form_ly.addWidget(_FieldRow("Unidade (ex: %, unidades)", self.f_ind_uni))
         
-        self.det_ly.addWidget(_FieldRow("Código", self.f_codigo))
-        self.det_ly.addWidget(_FieldRow("Indicador", self.f_nome))
-        self.det_ly.addSpacing(4)
+        form_ly.addSpacing(10)
+        form_ly.addWidget(_section_lbl("META E COMPORTAMENTO"))
+        form_ly.addWidget(_FieldRow("Meta Texto (ex: ≤ 3)", self.f_ind_meta_txt))
+        form_ly.addWidget(_FieldRow("Meta Número (ex: 3)", self.f_ind_meta_num))
+        form_ly.addWidget(self.f_ind_menor)
+        self.f_ind_ativo.setChecked(True)
+        form_ly.addWidget(self.f_ind_ativo)
         
-        self.det_ly.addWidget(_section_lbl("CLASSIFICAÇÃO"))
-
-        self.f_tipo = _combo()
-        self.f_tipo.addItems(["Operacional", "Estratégico", "Tático"])
-        self.f_periodo = _combo()
-        self.f_periodo.addItems(["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"])
-        self.f_unidade = _edit("Ex: evasões, óbitos, %")
-        self.det_ly.addWidget(_FieldRow("Tipo", self.f_tipo))
-        self.det_ly.addWidget(_FieldRow("Periodicidade", self.f_periodo))
-        self.det_ly.addWidget(_FieldRow("Unidade", self.f_unidade))
-        self.det_ly.addSpacing(4)
-
-        self.det_ly.addWidget(_section_lbl("META"))
-
-        self.f_meta_texto  = _edit("Ex: ≤ 3  ou  ≥ 95%")
-        self.f_meta_numero = _edit("Número para cálculo automático")
-        self.chk_menor = QCheckBox("Menor valor é melhor")
-        self.chk_menor.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
-        self.det_ly.addWidget(_FieldRow("Meta (texto)", self.f_meta_texto))
-        self.det_ly.addWidget(_FieldRow("Meta (número)", self.f_meta_numero))
-        self.det_ly.addWidget(self.chk_menor)
-        self.det_ly.addSpacing(4)
-
-        self.det_ly.addWidget(_section_lbl("MAPEAMENTO"))
-
-        self.f_aba    = _combo(editable=True)
-        self.f_campo  = _combo(editable=True)
-        self.f_result = _combo(editable=True)
-        self.f_modo   = _combo(editable=True)
-        self.f_modo.addItems(["2025 x 2026", "2024 x 2025"])
-
-        self.det_ly.addWidget(_FieldRow("Aba (Origem)", self.f_aba))
-        self.det_ly.addWidget(_FieldRow("Campo (Origem)", self.f_campo))
-        self.det_ly.addWidget(_FieldRow("Resultado Representa", self.f_result))
-        self.det_ly.addWidget(_FieldRow("Modo de Comparação", self.f_modo))
+        form_ly.addSpacing(10)
+        form_ly.addWidget(_FieldRow("Observações", self.f_ind_obs))
         
-        self.det_ly.addSpacing(4)
+        form_ly.addStretch()
 
-        self.det_ly.addSpacing(4)
-        self.det_ly.addWidget(_section_lbl("OPÇÕES"))
-        self.chk_usa  = QCheckBox("Utiliza dados operacionais"); self.chk_usa.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
-        self.chk_sub  = QCheckBox("Possui subindicadores");      self.chk_sub.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
-        self.chk_ativo= QCheckBox("Indicador ativo");             self.chk_ativo.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;font-size:9pt;")
-        self.det_ly.addWidget(self.chk_usa)
-        self.det_ly.addWidget(self.chk_sub)
-        self.det_ly.addWidget(self.chk_ativo)
-        self.det_ly.addSpacing(4)
-        
-        self.det_ly.addWidget(_section_lbl("OBSERVAÇÕES"))
-        
-        self.f_obs    = QTextEdit()
-        self.f_obs.setFont(QFont("Segoe UI",9)); self.f_obs.setMaximumHeight(70)
-        self.f_obs.setStyleSheet(f"QTextEdit{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px;color:{PRETO_TITULO};}}QTextEdit:focus{{border-color:{VERMELHO};}}")
-        self.det_ly.addWidget(self.f_obs)
-        
-        self.lbl_char_count = QLabel("0 / 500 caracteres")
-        self.lbl_char_count.setFont(QFont("Segoe UI",7))
-        self.lbl_char_count.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-        self.det_ly.addWidget(self.lbl_char_count)
-        self.f_obs.textChanged.connect(self._update_char_count)
+        btn_row = QHBoxLayout()
+        self.btn_ind_save = _btn("Salvar", primary=True)
+        self.btn_ind_del = _btn("Excluir", danger=True)
+        btn_row.addWidget(self.btn_ind_del)
+        btn_row.addStretch()
+        btn_row.addWidget(self.btn_ind_save)
+        form_ly.addLayout(btn_row)
 
-        self.det_ly.addStretch()
-
-        # Botões de Ação no Painel Direito
-        btn_row = QHBoxLayout(); btn_row.setSpacing(8)
-        self.btn_cancel = _btn("Cancelar")
-        self.btn_save   = _btn("Salvar Alterações", primary=True)
-        btn_row.addWidget(self.btn_cancel); btn_row.addWidget(self.btn_save, 1)
-        self.det_ly.addLayout(btn_row)
-        
-        self.btn_delete = _btn("Excluir Indicador", danger=True)
-        self.det_ly.addWidget(self.btn_delete)
-
-        splitter.addWidget(det_frame)
-        splitter.setSizes([880, 300])
-        main.addWidget(splitter, 1)
-
-        # Info bar
-        info = QLabel("ℹ️  Importe arquivos Excel para atualizar a base. Todos os mapeamentos salvos no painel direito são armazenados de forma persistente no banco SQLite local.")
-        info.setFont(QFont("Segoe UI",8)); info.setWordWrap(True)
-        info.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;padding:8px 0px;")
-        main.addWidget(info)
-        
-        # Status Label para Mensagens Globais
-        self.lbl_status = QLabel("")
-        self.lbl_status.setFont(QFont("Segoe UI",8, QFont.Weight.Bold))
-        self.lbl_status.setStyleSheet("background:transparent;border:none;")
-        main.addWidget(self.lbl_status)
+        splitter.addWidget(form_frame)
+        splitter.setSizes([700, 350])
+        ly.addWidget(splitter, 1)
 
         # Signals
-        self.table.selectionModel().selectionChanged.connect(self._on_select)
-        self.btn_save.clicked.connect(self._save)
-        self.btn_cancel.clicked.connect(self._cancel)
-        self.btn_delete.clicked.connect(self._delete_record)
-        self.btn_new.clicked.connect(self._new_record)
-        self.btn_import.clicked.connect(self._import_excel)
-        self.btn_refresh.clicked.connect(self._refresh_links)
-        self.f_busca.textChanged.connect(self._filter_table)
+        self.tbl_ind.selectionModel().selectionChanged.connect(self._on_ind_select)
+        self.btn_new_ind.clicked.connect(self._new_ind)
+        self.btn_ind_save.clicked.connect(self._save_ind)
+        self.btn_ind_del.clicked.connect(self._delete_ind)
 
-    # ── Lógica e Dados ──────────────────────────────────────────────────────
-    def _update_char_count(self):
-        txt = self.f_obs.toPlainText()
-        self.lbl_char_count.setText(f"{len(txt)} / 500 caracteres")
 
-    def _refresh_kpis(self):
-        while self.kpi_row.count():
-            item = self.kpi_row.takeAt(0)
-            if item.widget(): item.widget().deleteLater()
-        s = db.get_stats_indicadores()
-        self.kpi_row.addWidget(_kpi("🗺️","Indicadores Ativos",s["ativos"],f"{s['total']} no total",BRANCO,"#2E7D32"))
-        self.kpi_row.addWidget(_kpi("🎯","Com Meta",s["com_meta"],f"{s['sem_meta']} sem meta",BRANCO,"#1565C0"))
-        self.kpi_row.addWidget(_kpi("📊","Subindicadores",s["n_subindicadores"],"ativos no banco",BRANCO,"#6A1B9A"))
-        self.kpi_row.addWidget(_kpi("🗒","Registros Históricos",s["n_historico"],"lançamentos salvos",BRANCO,"#E65100"))
-
-    def _badge(self, text, status):
-        lbl = QLabel(text)
-        lbl.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cor, bg = STATUS_CORES.get(status, (CINZA_SUAVE, "#F5F5F5"))
-        lbl.setStyleSheet(f"color:{cor};background:{bg};border:1px solid {cor};border-radius:4px;margin:4px 10px;")
-        return lbl
-
-    def _load_table(self):
-        rows = db.get_all_indicadores()
-        self.table.setRowCount(len(rows))
-        for r, m in enumerate(rows):
-            def ci(txt, center=False):
-                it = QTableWidgetItem(str(txt) if txt else "–")
-                if center: it.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-                return it
-            is_selected = self._current_codigo == m["codigo_indicador"]
-            rad = "◉ " if is_selected else "○ "
-            it_cod = ci(rad + m["codigo_indicador"])
-            if is_selected: it_cod.setForeground(QColor(VERMELHO))
-            self.table.setItem(r, 0, it_cod)
-            self.table.setItem(r, 1, ci(m["nome_indicador"]))
-            self.table.setItem(r, 2, ci(m.get("tipo") or "–", True))
-            self.table.setItem(r, 3, ci(m.get("periodicidade") or "–", True))
-            self.table.setItem(r, 4, ci(m.get("unidade") or "–", True))
-            self.table.setItem(r, 5, ci(m.get("meta_texto") or "–", True))
-            self.table.setItem(r, 6, ci(str(m.get("meta_numero")) if m.get("meta_numero") is not None else "–", True))
-            menor = "Sim" if m.get("menor_melhor") else "Não"
-            self.table.setItem(r, 7, ci(menor, True))
-            ativo = "Sim" if m.get("indicador_ativo") else "Não"
-            it_at = ci(ativo, True)
-            it_at.setForeground(QColor(VERDE if ativo == "Sim" else PENDENTE_FG))
-            self.table.setItem(r, 8, it_at)
-            self.table.setRowHeight(r, 38)
-        self.footer_lbl.setText(f"Exibindo {len(rows)} registros")
-        self._refresh_kpis()
-        self._filter_table()
-
-    def _filter_table(self):
-        txt = self.f_busca.text().lower()
-        visible_count = 0
-        for row in range(self.table.rowCount()):
-            cod = self.table.item(row, 0).text().lower().replace("◉ ", "").replace("○ ", "")
-            nome = self.table.item(row, 1).text().lower()
-            if txt in cod or txt in nome:
-                self.table.setRowHidden(row, False)
-                visible_count += 1
-            else:
-                self.table.setRowHidden(row, True)
-        self.footer_lbl.setText(f"Exibindo 1 a {visible_count} de {self.table.rowCount()} registros")
-
-    def _on_select(self, selected, _):
-        rows = [i.row() for i in selected.indexes()]
-        if not rows: return
-        cod = self.table.item(rows[0], 0).text().replace("◉ ", "").replace("○ ", "")
+    def _build_tab_subindicadores(self):
+        ly = QVBoxLayout(self.tab_sub); ly.setContentsMargins(20,20,20,20); ly.setSpacing(16)
         
+        # Toolbar
+        tb = QHBoxLayout()
+        tb.addWidget(QLabel("Filtrar por Indicador:"))
+        self.cb_filter_ind = QComboBox()
+        self.cb_filter_ind.setMinimumWidth(300)
+        self.cb_filter_ind.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 8px;}}")
+        tb.addWidget(self.cb_filter_ind)
+        tb.addSpacing(20)
+        self.btn_new_sub = _btn("＋  Novo Subindicador", primary=True)
+        tb.addWidget(self.btn_new_sub)
+        tb.addStretch()
+        self.lbl_status_sub = QLabel("")
+        self.lbl_status_sub.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        tb.addWidget(self.lbl_status_sub)
+        ly.addLayout(tb)
+
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setStyleSheet("QSplitter::handle{background:transparent;}")
+        
+        # Tabela
+        self.tbl_sub = QTableWidget(0, 5)
+        self.tbl_sub.setHorizontalHeaderLabels(["ID", "Indicador Pai", "Nome do Subindicador", "Ordem", "Ativo"])
+        self.tbl_sub.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tbl_sub.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tbl_sub.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tbl_sub.verticalHeader().setVisible(False)
+        self.tbl_sub.setAlternatingRowColors(True)
+        self.tbl_sub.setStyleSheet(self.tbl_ind.styleSheet())
+        
+        hdr = self.tbl_sub.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        splitter.addWidget(self.tbl_sub)
+
+        # Painel Form
+        form_frame = QFrame()
+        form_frame.setMinimumWidth(320); form_frame.setMaximumWidth(400)
+        form_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E1E4E8;border-radius:8px;}}")
+        form_frame.setGraphicsEffect(shadow(12, (0,4), (0,0,0,15)))
+        form_ly = QVBoxLayout(form_frame); form_ly.setContentsMargins(20,20,20,20); form_ly.setSpacing(12)
+
+        self.f_sub_id = QLineEdit(); self.f_sub_id.setReadOnly(True); self.f_sub_id.setFixedHeight(34)
+        self.f_sub_id.setStyleSheet(f"QLineEdit{{background:#F3F4F6;border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#6E7781;}}")
+        self.f_sub_pai = QComboBox(); self.f_sub_pai.setFixedHeight(34)
+        self.f_sub_pai.setStyleSheet(f"QComboBox{{background:#F6F8FA;border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}")
+        self.f_sub_nome = QLineEdit(); self.f_sub_nome.setFixedHeight(34)
+        self.f_sub_nome.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}QLineEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
+        self.f_sub_ordem = QLineEdit(); self.f_sub_ordem.setFixedHeight(34)
+        self.f_sub_ordem.setStyleSheet(self.f_sub_nome.styleSheet())
+        self.f_sub_obs = QTextEdit(); self.f_sub_obs.setMaximumHeight(70)
+        self.f_sub_obs.setStyleSheet(f"QTextEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:6px;color:#24292F;}}QTextEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
+        self.f_sub_ativo = QCheckBox("Ativo")
+        self.f_sub_ativo.setStyleSheet("color:#24292F;font-weight:bold;")
+
+        form_ly.addWidget(_section_lbl("DADOS DO SUBINDICADOR"))
+        form_ly.addWidget(_FieldRow("ID (Automático)", self.f_sub_id))
+        form_ly.addWidget(_FieldRow("Indicador Pai", self.f_sub_pai))
+        form_ly.addWidget(_FieldRow("Nome do Subindicador", self.f_sub_nome))
+        form_ly.addWidget(_FieldRow("Ordem (Numérico)", self.f_sub_ordem))
+        self.f_sub_ativo.setChecked(True)
+        form_ly.addWidget(self.f_sub_ativo)
+        form_ly.addWidget(_FieldRow("Observações", self.f_sub_obs))
+        form_ly.addStretch()
+
+        btn_row = QHBoxLayout()
+        self.btn_sub_save = _btn("Salvar", primary=True)
+        self.btn_sub_del = _btn("Excluir", danger=True)
+        btn_row.addWidget(self.btn_sub_del)
+        btn_row.addStretch()
+        btn_row.addWidget(self.btn_sub_save)
+        form_ly.addLayout(btn_row)
+
+        splitter.addWidget(form_frame)
+        splitter.setSizes([700, 350])
+        ly.addWidget(splitter, 1)
+
+        # Signals
+        self.cb_filter_ind.currentIndexChanged.connect(self._load_subindicadores_table)
+        self.tbl_sub.selectionModel().selectionChanged.connect(self._on_sub_select)
+        self.btn_new_sub.clicked.connect(self._new_sub)
+        self.btn_sub_save.clicked.connect(self._save_sub)
+        self.btn_sub_del.clicked.connect(self._delete_sub)
+
+    # ── LOGICA INDICADORES ────────────────────────────────────────────────
+    def _msg_ind(self, txt, cor):
+        self.lbl_status_ind.setText(txt)
+        self.lbl_status_ind.setStyleSheet(f"color:{cor};")
+
+    def _load_indicadores_table(self):
+        rows = db.get_all_indicadores()
+        self.tbl_ind.setRowCount(len(rows))
+        for r, m in enumerate(rows):
+            def ci(txt): return QTableWidgetItem(str(txt) if txt else "–")
+            self.tbl_ind.setItem(r, 0, ci(m["codigo_indicador"]))
+            self.tbl_ind.setItem(r, 1, ci(m["nome_indicador"]))
+            self.tbl_ind.setItem(r, 2, ci(m.get("tipo")))
+            self.tbl_ind.setItem(r, 3, ci(m.get("periodicidade")))
+            self.tbl_ind.setItem(r, 4, ci(m.get("meta_texto")))
+            ativo = "Sim" if m.get("indicador_ativo") else "Não"
+            it_at = ci(ativo)
+            it_at.setForeground(QColor(VERDE if ativo == "Sim" else LARANJA))
+            self.tbl_ind.setItem(r, 5, it_at)
+
+    def _on_ind_select(self, selected, _):
+        if not selected.indexes(): return
+        r = selected.indexes()[0].row()
+        cod = self.tbl_ind.item(r, 0).text()
         m = db.get_indicador(cod)
         if not m: return
         
-        self._current_codigo = m["codigo_indicador"]
-        for r in range(self.table.rowCount()):
-            it = self.table.item(r, 0)
-            if it:
-                r_cod = it.text().replace("◉ ", "").replace("○ ", "")
-                if r == rows[0]:
-                    it.setText("◉ " + r_cod)
-                    it.setForeground(QColor(VERMELHO))
-                else:
-                    it.setText("○ " + r_cod)
-                    it.setForeground(QColor(PRETO_TITULO))
-        
-        self._original_record = dict(m)
-        self._fill_fields(m)
+        self.f_ind_cod.setText(m["codigo_indicador"])
+        self.f_ind_cod.setReadOnly(True)
+        self.f_ind_nome.setText(m["nome_indicador"])
+        self.f_ind_tipo.setCurrentText(m.get("tipo") or "Operacional")
+        self.f_ind_per.setCurrentText(m.get("periodicidade") or "Mensal")
+        self.f_ind_uni.setText(m.get("unidade") or "")
+        self.f_ind_meta_txt.setText(m.get("meta_texto") or "")
+        mn = m.get("meta_numero")
+        self.f_ind_meta_num.setText(str(mn) if mn is not None else "")
+        self.f_ind_menor.setChecked(bool(m.get("menor_melhor", 1)))
+        self.f_ind_ativo.setChecked(bool(m.get("indicador_ativo", 1)))
+        self.f_ind_obs.setPlainText(m.get("observacoes") or "")
+        self.btn_ind_del.setVisible(True)
 
-    def _fill_fields(self, m):
-        self.f_codigo.setText(m.get("codigo_indicador") or "")
-        self.f_nome.setText(m.get("nome_indicador") or "")
-        # Classificação
-        tipo = m.get("tipo") or "Operacional"
-        idx = self.f_tipo.findText(tipo)
-        self.f_tipo.setCurrentIndex(idx if idx >= 0 else 0)
-        per = m.get("periodicidade") or "Mensal"
-        idx = self.f_periodo.findText(per)
-        self.f_periodo.setCurrentIndex(idx if idx >= 0 else 0)
-        self.f_unidade.setText(m.get("unidade") or "")
-        # Meta
-        self.f_meta_texto.setText(m.get("meta_texto") or "")
-        meta_num = m.get("meta_numero")
-        self.f_meta_numero.setText(str(int(meta_num)) if isinstance(meta_num, float) and meta_num == int(meta_num) else str(meta_num) if meta_num is not None else "")
-        self.chk_menor.setChecked(bool(m.get("menor_melhor", 1)))
-        # Mapeamento
-        self.f_aba.setCurrentText(m.get("aba_origem_excel") or "")
-        self.f_campo.setCurrentText(m.get("campo_origem") or "")
-        self.f_result.setCurrentText(m.get("resultado_representa") or "")
-        self.f_modo.setCurrentText(m.get("modo_comparacao") or "2025 x 2026")
-        self.f_obs.setPlainText(m.get("observacoes") or "")
-        self.chk_ativo.setChecked(bool(m.get("indicador_ativo", 1)))
-        self.f_codigo.setReadOnly(True)
-        self.f_codigo.setStyleSheet(f"QLineEdit{{background:#F0F0F0;border:1px solid {CINZA_BORDA};border-radius:4px;padding:5px 8px;color:{CINZA_SUAVE};}}")
-        self.btn_delete.setVisible(True)
+    def _new_ind(self):
+        self.tbl_ind.clearSelection()
+        self.f_ind_cod.clear()
+        self.f_ind_cod.setReadOnly(False)
+        self.f_ind_nome.clear()
+        self.f_ind_uni.clear()
+        self.f_ind_meta_txt.clear()
+        self.f_ind_meta_num.clear()
+        self.f_ind_obs.clear()
+        self.f_ind_ativo.setChecked(True)
+        self.btn_ind_del.setVisible(False)
+        self._msg_ind("Preencha os dados e salve.", PRETO_TITULO)
+        self.f_ind_cod.setFocus()
 
-    def _collect_fields(self) -> dict:
-        meta_num = None
-        try:
-            v = self.f_meta_numero.text().strip().replace(",",".")
-            meta_num = float(v) if v else None
-        except ValueError:
-            pass
-        return {
-            "codigo_indicador": self.f_codigo.text().strip(),
-            "nome_indicador":   self.f_nome.text().strip(),
-            "tipo":             self.f_tipo.currentText(),
-            "periodicidade":    self.f_periodo.currentText(),
-            "unidade":          self.f_unidade.text().strip() or None,
-            "meta_texto":       self.f_meta_texto.text().strip() or None,
-            "meta_numero":      meta_num,
-            "menor_melhor":     1 if self.chk_menor.isChecked() else 0,
-            "observacoes":      self.f_obs.toPlainText().strip() or None,
-            "indicador_ativo":  1 if self.chk_ativo.isChecked() else 0,
-        }
-
-    # ── Ações ───────────────────────────────────────────────────────────────
-    def _save(self):
-        record = self._collect_fields()
-        if not record["codigo_indicador"]:
-            self.lbl_status.setText("⚠️ O Código do indicador é obrigatório.")
-            self.lbl_status.setStyleSheet(f"color:{LARANJA};")
+    def _save_ind(self):
+        cod = self.f_ind_cod.text().strip()
+        if not cod:
+            self._msg_ind("Código é obrigatório.", LARANJA)
             return
         
-        # Salva no banco
+        mn = self.f_ind_meta_num.text().strip().replace(",", ".")
+        try: mn = float(mn) if mn else None
+        except ValueError: mn = None
 
-
-
-
-
-
-        ok = db.upsert_indicador(record)
-        if ok:
-            self.lbl_status.setText(f"✅ O indicador '{record['codigo_indicador']}' foi salvo com sucesso no banco!")
-            self.lbl_status.setStyleSheet(f"color:{VERDE};")
-            self._current_codigo = record["codigo_indicador"]
-            self._load_table()
+        rec = {
+            "codigo_indicador": cod,
+            "nome_indicador": self.f_ind_nome.text().strip(),
+            "tipo": self.f_ind_tipo.currentText(),
+            "periodicidade": self.f_ind_per.currentText(),
+            "unidade": self.f_ind_uni.text().strip(),
+            "meta_texto": self.f_ind_meta_txt.text().strip(),
+            "meta_numero": mn,
+            "menor_melhor": 1 if self.f_ind_menor.isChecked() else 0,
+            "indicador_ativo": 1 if self.f_ind_ativo.isChecked() else 0,
+            "observacoes": self.f_ind_obs.toPlainText().strip()
+        }
+        if db.upsert_indicador(rec):
+            self._msg_ind(f"Indicador {cod} salvo!", VERDE)
+            self._load_indicadores_table()
+            self._load_subindicadores_combos()
         else:
-            self.lbl_status.setText("❌ Ocorreu um erro interno ao salvar as alterações.")
-            self.lbl_status.setStyleSheet(f"color:{VERMELHO};")
+            self._msg_ind("Erro ao salvar.", VERMELHO)
 
-    def _cancel(self):
-        if self._original_record:
-            self._fill_fields(self._original_record)
-            self.lbl_status.setText("↩️ Alterações não salvas foram revertidas.")
-            self.lbl_status.setStyleSheet(f"color:{CINZA_SUAVE};")
-        else:
-            if self.table.rowCount() > 0:
-                self.table.selectRow(0)
-
-    def _new_record(self):
-        self._current_codigo = None
-        self._original_record = None
-        blank = {k: "" for k in ["codigo_indicador","nome_indicador","aba_origem_excel",
-                                   "campo_origem","resultado_representa","observacoes"]}
-        blank.update({"usa_dados_operacionais":1,"subindicadores_existem":0,
-                      "indicador_ativo":1,"status_mapeamento":STATUS_SEM_VINCULO,
-                      "modo_comparacao": "2025 x 2026"})
-        
-        self.f_codigo.setReadOnly(False)
-        self.f_codigo.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:5px 8px;color:{PRETO_TITULO};}}QLineEdit:focus{{border-color:{VERMELHO};}}")
-        self._fill_fields(blank)
-        self.f_codigo.clear()
-        self.btn_delete.setVisible(False)
-        self.table.clearSelection()
-        
-        self.lbl_status.setText("📝 Criando novo indicador. Preencha os campos e clique em Salvar.")
-        self.lbl_status.setStyleSheet(f"color:{LARANJA};")
-        self.f_codigo.setFocus()
-
-    def _delete_record(self):
-        cod = self.f_codigo.text().strip()
+    def _delete_ind(self):
+        cod = self.f_ind_cod.text().strip()
         if not cod: return
-        
-        reply = QMessageBox.question(self, "Confirmação de Exclusão", 
-                                     f"Tem certeza que deseja remover o indicador {cod} definitivamente do banco de dados?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
-                                     QMessageBox.StandardButton.No)
-        
-        if reply == QMessageBox.StandardButton.Yes:
-            if db.delete_by_codigo(cod):
-                self.lbl_status.setText(f"🗑️ Indicador '{cod}' removido.")
-                self.lbl_status.setStyleSheet(f"color:{VERDE};")
-                self._current_codigo = None
-                self._load_table()
-                if self.table.rowCount() > 0:
-                    self.table.selectRow(0)
-                else:
-                    self._new_record()
+        r = QMessageBox.question(self, "Excluir", f"Remover indicador {cod} e seus subindicadores/histórico?",
+                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if r == QMessageBox.StandardButton.Yes:
+            if db.delete_indicador(cod):
+                self._msg_ind("Indicador removido.", VERDE)
+                self._load_indicadores_table()
+                self._load_subindicadores_combos()
+                self._new_ind()
             else:
-                self.lbl_status.setText("❌ Erro ao remover.")
-                self.lbl_status.setStyleSheet(f"color:{VERMELHO};")
+                self._msg_ind("Erro ao excluir.", VERMELHO)
 
-    def _import_excel(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Selecionar Planilha Operacional", "", "Excel Files (*.xlsx)")
-        if not path: return
+
+    # ── LOGICA SUBINDICADORES ─────────────────────────────────────────────
+    def _msg_sub(self, txt, cor):
+        self.lbl_status_sub.setText(txt)
+        self.lbl_status_sub.setStyleSheet(f"color:{cor};")
+
+    def _load_subindicadores_combos(self):
+        inds = db.get_all_indicadores()
         
-        try:
-            wb = openpyxl.load_workbook(path, read_only=True)
-            self._available_sheets = set(wb.sheetnames)
-            wb.close()
-        except Exception as e:
-            QMessageBox.warning(self, "Aviso", f"Não foi possível ler as abas do arquivo: {e}")
-            
-        count, msg = db.import_from_excel(path)
-        if count > 0:
-            QMessageBox.information(self, "Importação Concluída", msg)
-            self._load_table()
-            self.lbl_status.setText(f"📥 {msg}")
-            self.lbl_status.setStyleSheet(f"color:{VERDE};")
-        else:
-            QMessageBox.warning(self, "Importação", msg)
+        # Filtro
+        cur_filter = self.cb_filter_ind.currentData()
+        self.cb_filter_ind.blockSignals(True)
+        self.cb_filter_ind.clear()
+        self.cb_filter_ind.addItem("Todos os Indicadores", "TODOS")
+        for i in inds:
+            self.cb_filter_ind.addItem(f"{i['codigo_indicador']} - {i['nome_indicador']}", i['codigo_indicador'])
+        idx = self.cb_filter_ind.findData(cur_filter)
+        if idx >= 0: self.cb_filter_ind.setCurrentIndex(idx)
+        self.cb_filter_ind.blockSignals(False)
 
-    def _refresh_links(self):
-        rows = db.get_all()
-        updated = 0
-        for m in rows:
-            has_aba   = bool(m.get("aba_origem_excel"))
-            has_campo = bool(m.get("campo_origem"))
-            cur_st    = m.get("status_mapeamento","")
-            new_st    = STATUS_SEM_VINCULO
-            if has_aba and has_campo:
-                new_st = STATUS_MAPEADO
-            elif has_aba or has_campo:
-                new_st = STATUS_PENDENTE_PROCESSO
-                
-            if cur_st != new_st:
-                m["status_mapeamento"] = new_st
-                db.upsert(m); updated += 1
-                
-        self._load_table()
-        self.lbl_status.setText(f"🔄 Status dos vínculos atualizados. {updated} indicadores alterados automaticamente.")
-        self.lbl_status.setStyleSheet(f"color:{VERDE};")
+        # Form Combo
+        cur_pai = self.f_sub_pai.currentData()
+        self.f_sub_pai.clear()
+        for i in inds:
+            self.f_sub_pai.addItem(i['codigo_indicador'], i['codigo_indicador'])
+        idx = self.f_sub_pai.findData(cur_pai)
+        if idx >= 0: self.f_sub_pai.setCurrentIndex(idx)
+
+    def _load_subindicadores_table(self):
+        filtro = self.cb_filter_ind.currentData()
+        subs = db.get_all_subindicadores()
+        if filtro and filtro != "TODOS":
+            subs = [s for s in subs if s["codigo_indicador"] == filtro]
+        
+        self.tbl_sub.setRowCount(len(subs))
+        for r, s in enumerate(subs):
+            def ci(txt): return QTableWidgetItem(str(txt) if txt else "–")
+            self.tbl_sub.setItem(r, 0, ci(s["id"]))
+            self.tbl_sub.setItem(r, 1, ci(s["codigo_indicador"]))
+            self.tbl_sub.setItem(r, 2, ci(s["nome_subindicador"]))
+            self.tbl_sub.setItem(r, 3, ci(s.get("ordem", 0)))
+            ativo = "Sim" if s.get("ativo") else "Não"
+            it_at = ci(ativo)
+            it_at.setForeground(QColor(VERDE if ativo == "Sim" else LARANJA))
+            self.tbl_sub.setItem(r, 4, it_at)
+
+    def _on_sub_select(self, selected, _):
+        if not selected.indexes(): return
+        r = selected.indexes()[0].row()
+        sid = int(self.tbl_sub.item(r, 0).text())
+        s = db.get_subindicador(sid)
+        if not s: return
+        
+        self.f_sub_id.setText(str(s["id"]))
+        idx = self.f_sub_pai.findData(s["codigo_indicador"])
+        if idx >= 0: self.f_sub_pai.setCurrentIndex(idx)
+        self.f_sub_pai.setEnabled(False) # Não muda o pai depois de criado
+        self.f_sub_nome.setText(s["nome_subindicador"])
+        self.f_sub_ordem.setText(str(s.get("ordem", 0)))
+        self.f_sub_ativo.setChecked(bool(s.get("ativo", 1)))
+        self.f_sub_obs.setPlainText(s.get("observacoes") or "")
+        self.btn_sub_del.setVisible(True)
+
+    def _new_sub(self):
+        self.tbl_sub.clearSelection()
+        self.f_sub_id.clear()
+        self.f_sub_pai.setEnabled(True)
+        # Tenta pegar do filtro se não for TODOS
+        filtro = self.cb_filter_ind.currentData()
+        if filtro and filtro != "TODOS":
+            idx = self.f_sub_pai.findData(filtro)
+            if idx >= 0: self.f_sub_pai.setCurrentIndex(idx)
+        
+        self.f_sub_nome.clear()
+        self.f_sub_ordem.setText("0")
+        self.f_sub_ativo.setChecked(True)
+        self.f_sub_obs.clear()
+        self.btn_sub_del.setVisible(False)
+        self._msg_sub("Preencha os dados e salve.", PRETO_TITULO)
+        self.f_sub_nome.setFocus()
+
+    def _save_sub(self):
+        if not self.f_sub_pai.currentData():
+            self._msg_sub("Selecione um Indicador Pai.", LARANJA)
+            return
+        if not self.f_sub_nome.text().strip():
+            self._msg_sub("Nome do subindicador é obrigatório.", LARANJA)
+            return
+            
+        ordem = 0
+        try: ordem = int(self.f_sub_ordem.text().strip() or "0")
+        except ValueError: pass
+
+        sid = self.f_sub_id.text().strip()
+        rec = {
+            "codigo_indicador": self.f_sub_pai.currentData(),
+            "nome_subindicador": self.f_sub_nome.text().strip(),
+            "ordem": ordem,
+            "ativo": 1 if self.f_sub_ativo.isChecked() else 0,
+            "observacoes": self.f_sub_obs.toPlainText().strip()
+        }
+        if sid: rec["id"] = int(sid)
+
+        res = db.upsert_subindicador(rec)
+        if res:
+            self._msg_sub("Subindicador salvo!", VERDE)
+            self._load_subindicadores_table()
+            # Seleciona de volta
+            for r in range(self.tbl_sub.rowCount()):
+                if self.tbl_sub.item(r, 0).text() == str(res):
+                    self.tbl_sub.selectRow(r)
+                    break
+        else:
+            self._msg_sub("Erro ao salvar.", VERMELHO)
+
+    def _delete_sub(self):
+        sid = self.f_sub_id.text().strip()
+        if not sid: return
+        r = QMessageBox.question(self, "Excluir", f"Remover subindicador ID {sid} e seu histórico?",
+                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if r == QMessageBox.StandardButton.Yes:
+            if db.delete_subindicador(int(sid)):
+                self._msg_sub("Subindicador removido.", VERDE)
+                self._load_subindicadores_table()
+                self._new_sub()
+            else:
+                self._msg_sub("Erro ao excluir.", VERMELHO)

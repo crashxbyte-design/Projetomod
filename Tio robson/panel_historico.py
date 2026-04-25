@@ -86,11 +86,23 @@ class HistoricoPanel(QWidget):
         sel_ly.addWidget(lbl_ind)
 
         self.sel_ind = QComboBox()
-        self.sel_ind.setMinimumWidth(340)
+        self.sel_ind.setMinimumWidth(300)
         self.sel_ind.setFixedHeight(34)
         self.sel_ind.setFont(QFont("Segoe UI",9))
         self.sel_ind.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QComboBox::drop-down{{border:none;}}")
         sel_ly.addWidget(self.sel_ind)
+
+        lbl_sub = QLabel("Subindicador:")
+        lbl_sub.setFont(QFont("Segoe UI",9,QFont.Weight.Bold))
+        lbl_sub.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
+        sel_ly.addWidget(lbl_sub)
+
+        self.sel_sub = QComboBox()
+        self.sel_sub.setMinimumWidth(260)
+        self.sel_sub.setFixedHeight(34)
+        self.sel_sub.setFont(QFont("Segoe UI",9))
+        self.sel_sub.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QComboBox::drop-down{{border:none;}}")
+        sel_ly.addWidget(self.sel_sub)
 
         lbl_ano = QLabel("Ano:")
         lbl_ano.setFont(QFont("Segoe UI",9,QFont.Weight.Bold))
@@ -171,32 +183,48 @@ class HistoricoPanel(QWidget):
         self.btn_load.clicked.connect(self._load_historico)
         self.btn_save.clicked.connect(self._save_historico)
         self.btn_clear.clicked.connect(self._clear_inputs)
-        self.sel_ind.currentIndexChanged.connect(self._load_historico)
+        self.sel_ind.currentIndexChanged.connect(self._on_indicador_changed)
+        self.sel_sub.currentIndexChanged.connect(self._clear_inputs)
         self.sel_ano.currentIndexChanged.connect(self._load_historico)
 
     def _populate_selector(self):
+        self.sel_ind.blockSignals(True)
         self.sel_ind.clear()
         inds = db.get_indicadores_ativos()
         for i in inds:
             self.sel_ind.addItem(f"{i['codigo_indicador']}  —  {i['nome_indicador']}", i['codigo_indicador'])
+        self.sel_ind.blockSignals(False)
+        self._on_indicador_changed()
+
+    def _on_indicador_changed(self):
+        cod = self.sel_ind.currentData()
+        self.sel_sub.clear()
+        if cod:
+            subs = db.get_subindicadores(cod)
+            for s in subs:
+                self.sel_sub.addItem(s['nome_subindicador'], s['id'])
+        self._clear_inputs()
 
     def _current_codigo(self):
         return self.sel_ind.currentData()
+
+    def _current_sub_id(self):
+        return self.sel_sub.currentData()
 
     def _current_ano(self):
         return int(self.sel_ano.currentText())
 
     def _load_historico(self):
-        cod  = self._current_codigo()
-        ano  = self._current_ano()
-        if not cod: return
+        sub_id = self._current_sub_id()
+        ano    = self._current_ano()
+        if not sub_id: return
 
-        ind  = db.get_indicador(cod)
-        nome = ind['nome_indicador'] if ind else cod
-        self.grade_title.setText(f"{cod}  —  {nome}  |  Ano: {ano}")
+        sub = db.get_subindicador(sub_id)
+        nome = sub['nome_subindicador'] if sub else f"ID: {sub_id}"
+        self.grade_title.setText(f"Subindicador: {nome}  |  Ano: {ano}")
 
-        # Agrega histórico de todos os subindicadores do indicador
-        hist = db.get_historico_indicador(cod, [ano])
+        # Busca o histórico do subindicador
+        hist = db.get_historico_subindicador(sub_id, [ano])
         dados_ano = hist.get(ano, {})
 
         # Preenche inputs
@@ -215,14 +243,14 @@ class HistoricoPanel(QWidget):
             """)
 
         self.lbl_info.setText("")
-        self._rebuild_saved_table(cod)
+        self._rebuild_saved_table(sub_id)
 
-    def _rebuild_saved_table(self, cod):
+    def _rebuild_saved_table(self, sub_id):
         while self.saved_grid.count():
             item = self.saved_grid.takeAt(0)
             if item.widget(): item.widget().deleteLater()
 
-        hist = db.get_historico_indicador(cod)
+        hist = db.get_historico_subindicador(sub_id)
         if not hist:
             lbl = QLabel("Nenhum dado salvo para este indicador.")
             lbl.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
@@ -257,23 +285,15 @@ class HistoricoPanel(QWidget):
                 self.saved_grid.addWidget(cell, ri, ci)
 
     def _save_historico(self):
-        cod = self._current_codigo()
-        ano = self._current_ano()
-        if not cod:
-            self.lbl_info.setText("⚠️ Selecione um indicador.")
-            self.lbl_info.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
-            return
-
-        # Usa o primeiro subindicador do indicador (ou cria um padrão)
-        subs = db.get_subindicadores(cod)
-        if not subs:
-            self.lbl_info.setText("⚠️ Crie pelo menos um subindicador primeiro.")
+        sub_id = self._current_sub_id()
+        ano    = self._current_ano()
+        
+        if not sub_id:
+            self.lbl_info.setText("⚠️ Selecione um indicador e um subindicador.")
             self.lbl_info.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
             return
 
         saved = 0; errors = 0
-        # Salva no primeiro subindicador por simplicidade
-        sub_id = subs[0]["id"]
         for mes in MESES:
             txt = self._inputs[mes].text().strip().replace(",", ".")
             if txt == "" or txt == "–":
