@@ -32,24 +32,24 @@ class SidebarButton(QPushButton):
         self.key = key
         self._active = False
         self.setCheckable(True)
-        self.setFixedHeight(58)
+        self.setFixedHeight(54)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         ly = QHBoxLayout(self)
-        ly.setContentsMargins(14, 0, 10, 0)
-        ly.setSpacing(10)
+        ly.setContentsMargins(18, 0, 10, 0)
+        ly.setSpacing(14)
 
         self.ico_lbl = QLabel(icon_txt)
-        self.ico_lbl.setFont(QFont("Segoe UI Emoji", 15))
+        self.ico_lbl.setFont(QFont("Segoe UI Emoji", 14))
         self.ico_lbl.setFixedWidth(24)
         self.ico_lbl.setFixedHeight(24)
         self.ico_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ico_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         ly.addWidget(self.ico_lbl)
 
-        self.txt_lbl = QLabel(label)
-        self.txt_lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        self.txt_lbl = QLabel(label.replace('\n', ' '))
+        self.txt_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.txt_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.txt_lbl.setWordWrap(True)
         ly.addWidget(self.txt_lbl, 1)
@@ -58,22 +58,20 @@ class SidebarButton(QPushButton):
 
     def _update_style(self, active):
         self._active = active
-        bg  = VERMELHO_ESC if active else "transparent"
-        fg  = BRANCO       if active else "#333333"
-        hov = "#6B0000"    if active else "#F0F0F0"
+        bg  = "#B91C1C" if active else "transparent"
+        fg  = "#FFFFFF" if active else "#334155"
+        hov = "#DC2626" if active else "#F1F5F9"
 
-        # Sem border-radius — barra selecionada ocupa largura total como no print
         self.setStyleSheet(f"""
             QPushButton {{
                 background: {bg};
                 border: none;
-                border-radius: 0px;
-                margin: 0px;
+                border-radius: 8px;
+                margin: 4px 12px;
                 padding: 0px;
             }}
             QPushButton:hover {{ background: {hov}; }}
         """)
-        # Fundo completamente transparente nas labels para não criar caixas brancas
         transparent = "background: transparent; border: none;"
         self.ico_lbl.setStyleSheet(f"color: {fg}; {transparent}")
         self.txt_lbl.setStyleSheet(f"color: {fg}; {transparent}")
@@ -87,15 +85,15 @@ class Sidebar(QFrame):
     """Sidebar vertical com navegação — fiel ao print de referência."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(190)
-        self.setStyleSheet(f"background: {BRANCO}; border-right: 1px solid {CINZA_BORDA};")
+        self.setFixedWidth(260)
+        self.setStyleSheet(f"background: #FFFFFF; border-right: 1px solid #E2E8F0;")
 
         self._buttons = []
         self._callbacks = []
 
         ly = QVBoxLayout(self)
-        ly.setContentsMargins(0, 8, 0, 0)
-        ly.setSpacing(0)
+        ly.setContentsMargins(0, 16, 0, 0)
+        ly.setSpacing(4)
 
         # ── Botões de navegação ────────────────────────────────────────────
         for icon_txt, label, key in NAV_ITEMS:
@@ -107,20 +105,23 @@ class Sidebar(QFrame):
         ly.addStretch()
 
         # ── Botão Recarregar ───────────────────────────────────────────────
-        self.btn_reload = QPushButton("🔄 Recarregar Dados")
-        self.btn_reload.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        self.btn_reload = QPushButton("🔄  Recarregar Dados")
+        self.btn_reload.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.btn_reload.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_reload.setStyleSheet("""
             QPushButton {
-                background: #F5F5F5;
-                color: #333333;
-                border: 1px solid #E0E0E0;
-                border-radius: 6px;
-                padding: 8px;
+                background: #FFFFFF;
+                color: #475569;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                padding: 10px;
                 margin: 0px 16px;
-                text-align: left;
+                text-align: center;
             }
             QPushButton:hover {
-                background: #E0E0E0;
+                background: #F8FAFC;
+                border-color: #94A3B8;
+                color: #0F172A;
             }
         """)
         ly.addWidget(self.btn_reload)
@@ -128,7 +129,8 @@ class Sidebar(QFrame):
         # ── Versão ────────────────────────────────────────────────────────
         ver = QLabel("v1.0 – Fase 1")
         ver.setFont(QFont("Segoe UI", 8))
-        ver.setStyleSheet("color: #999999; background: transparent; border: none; padding: 10px 16px;")
+        ver.setStyleSheet("color: #94A3B8; background: transparent; border: none; padding: 16px 16px 20px 16px;")
+        ver.setAlignment(Qt.AlignmentFlag.AlignRight)
         ver.setWordWrap(True)
         ly.addWidget(ver)
 
@@ -146,41 +148,37 @@ class Sidebar(QFrame):
         self._callbacks.append(callback)
 
 
-class MackenzieLogo(QWidget):
-    """Componente visual imitando a logo do Mackenzie (círculo vermelho com 'M')."""
+class MackenzieLogo(QLabel):
+    """Componente visual que carrega a logo a partir do arquivo logo.png."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(50, 50)
+        import os
+        from PySide6.QtGui import QPixmap
+        from PySide6.QtCore import Qt
         
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        # Círculo vermelho
-        painter.setBrush(QColor(VERMELHO))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(0, 0, 50, 50)
-        
-        # Borda interna (círculo branco)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QColor(BRANCO))
-        painter.drawEllipse(3, 3, 44, 44)
-        
-        # Letra M
-        painter.setPen(QColor(BRANCO))
-        font = QFont("Arial", 22, QFont.Weight.Bold)
-        painter.setFont(font)
-        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "M")
+        logo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logo.png'))
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            # Escala a imagem para caber bem no bloco esquerdo (max 240x80)
+            pixmap = pixmap.scaled(240, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.setPixmap(pixmap)
+            self.setFixedSize(pixmap.size())
+        else:
+            # Fallback se a imagem não existir
+            self.setFixedSize(54, 54)
+            self.setText("M")
+            self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.setStyleSheet("color: #B91C1C; font-size: 26px; font-weight: bold; background: white; border-radius: 27px;")
 
 class TopHeader(QFrame):
-    """Cabeçalho superior com título da tela e logo Mackenzie."""
+    """Cabeçalho superior com título da tela e bloco de logo do Mackenzie alinhado ao sidebar."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(80)
+        self.setFixedHeight(100)
         self.setStyleSheet(f"""
             QFrame {{
-                background: {BRANCO};
-                border-bottom: 2px solid {VERMELHO_ESC};
+                background: #FFFFFF;
+                border-bottom: 1px solid #E2E8F0;
                 border-top: none;
                 border-left: none;
                 border-right: none;
@@ -188,68 +186,73 @@ class TopHeader(QFrame):
         """)
 
         ly = QHBoxLayout(self)
-        ly.setContentsMargins(28, 0, 28, 0)
-        ly.setSpacing(20)
+        ly.setContentsMargins(0, 0, 32, 0)
+        ly.setSpacing(0)
         
-        # Logo
+        # Bloco Vermelho com Logo, largura igual ao sidebar
+        logo_block = QFrame()
+        logo_block.setFixedWidth(260)
+        logo_block.setStyleSheet("background: #B91C1C; border: none; border-bottom: 1px solid #991B1B;")
+        lb_ly = QHBoxLayout(logo_block)
+        lb_ly.setContentsMargins(10, 10, 10, 10)
+        
         logo = MackenzieLogo()
-        ly.addWidget(logo)
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lb_ly.addWidget(logo)
         
-        # Textos Mackenzie
-        mack_col = QVBoxLayout()
-        mack_col.setSpacing(0)
-        mack_col.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        uni_lbl = QLabel("Universidade Presbiteriana")
-        uni_lbl.setFont(QFont("Segoe UI", 9))
-        uni_lbl.setStyleSheet(f"color: {PRETO_TITULO}; background: transparent; border: none;")
-        mack_lbl = QLabel("Mackenzie")
-        mack_lbl.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        mack_lbl.setStyleSheet(f"color: {VERMELHO}; background: transparent; border: none;")
-        mack_col.addWidget(uni_lbl)
-        mack_col.addWidget(mack_lbl)
-        ly.addLayout(mack_col)
+        ly.addWidget(logo_block)
         
-        ly.addStretch()
+        # Espaçamento após o bloco vermelho
+        ly.addSpacing(32)
 
-        # Título principal centralizado
+        # Título principal centralizado na área restante
         self.title_col = QVBoxLayout()
-        self.title_col.setSpacing(0)
+        self.title_col.setSpacing(2)
         self.title_col.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.page_title = QLabel("BOOK DE INDICADORES")
-        self.page_title.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
-        self.page_title.setStyleSheet(f"color: {PRETO_TITULO}; background: transparent; border: none;")
+        self.page_title.setFont(QFont("Segoe UI", 24, QFont.Weight.Black))
+        self.page_title.setStyleSheet("color: #0F172A; background: transparent; border: none; letter-spacing: 1px;")
         self.page_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_col.addWidget(self.page_title)
 
-        self.page_sub = QLabel("SEGURANÇA PATRIMONIAL")
-        self.page_sub.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        self.page_sub.setStyleSheet(f"color: {VERMELHO}; background: transparent; border: none;")
+        self.page_sub = QLabel("PAINEL EXECUTIVO")
+        self.page_sub.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        self.page_sub.setStyleSheet("color: #B91C1C; background: transparent; border: none; letter-spacing: 1.5px;")
         self.page_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_col.addWidget(self.page_sub)
 
-        ly.addLayout(self.title_col)
-        ly.addStretch()
+        ly.addLayout(self.title_col, 1)
 
-        # Metadados à direita com fonte menor e bordas na Grid
+        # Metadados à direita
         meta_frame = QFrame()
-        meta_frame.setStyleSheet(f"border: 1px solid {CINZA_BORDA}; border-radius: 4px; background: transparent;")
+        meta_frame.setStyleSheet("""
+            QFrame {
+                background: #F8FAFC; 
+                border: 1px solid #E2E8F0; 
+                border-radius: 8px;
+            }
+        """)
         meta_ly = QVBoxLayout(meta_frame)
-        meta_ly.setContentsMargins(8, 6, 8, 6)
-        meta_ly.setSpacing(4)
+        meta_ly.setContentsMargins(16, 12, 16, 12)
+        meta_ly.setSpacing(6)
         
-        for label, value in [
-            ("Data de Atualização:", "05/11/2026"),
-            ("Período Selecionado:", "Jan a Fev/2026"),
-            ("Responsável:", "Segurança Patrimonial"),
+        for icon, label, value in [
+            ("📅", "Data de Atualização:", "05/11/2026"),
+            ("📅", "Período Selecionado:", "Jan a Fev/2026"),
+            ("👤", "Responsável:", "Segurança Patrimonial"),
         ]:
             row = QHBoxLayout()
             row.setSpacing(10)
+            ico = QLabel(icon)
+            ico.setFont(QFont("Segoe UI Emoji", 10))
+            ico.setStyleSheet("background:transparent; border:none;")
             lbl = QLabel(label)
-            lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-            lbl.setStyleSheet(f"color: {PRETO_TITULO}; background: transparent; border: none;")
+            lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+            lbl.setStyleSheet("color: #1E293B; background: transparent; border: none;")
             val = QLabel(value)
-            val.setFont(QFont("Segoe UI", 8))
-            val.setStyleSheet(f"color: {CINZA_SUAVE}; background: transparent; border: none;")
+            val.setFont(QFont("Segoe UI", 9))
+            val.setStyleSheet("color: #64748B; background: transparent; border: none;")
+            row.addWidget(ico)
             row.addWidget(lbl)
             row.addWidget(val)
             row.addStretch()
