@@ -14,15 +14,32 @@ MESES = [
 ]
 
 
-def _calc_status(valor, meta_numero, menor_melhor: bool) -> str:
+OPERADORES = ("<", "<=", "=", ">=", ">")
+
+
+def _calc_status(valor, meta_operador: str | None, meta_numero) -> str:
+    """Regra de status clara e exaustiva.
+
+    A preencher  → não há valor atual
+    Sem meta     → há valor mas não há meta definida
+    Dentro da meta → valor avalia True com operador + meta_numero
+    Em Atenção  → há meta, há valor, mas não atende
+    """
     if valor is None:
         return "A preencher"
-    if meta_numero is None:
+    if not meta_operador or meta_numero is None:
+        return "Sem meta"
+    try:
+        ok = (
+            (meta_operador == "<"  and valor <  meta_numero) or
+            (meta_operador == "<=" and valor <= meta_numero) or
+            (meta_operador == "="  and valor == meta_numero) or
+            (meta_operador == ">=" and valor >= meta_numero) or
+            (meta_operador == ">"  and valor >  meta_numero)
+        )
+    except TypeError:
         return "Em Atenção"
-    if menor_melhor:
-        return "Dentro da meta" if valor <= meta_numero else "Em Atenção"
-    else:
-        return "Dentro da meta" if valor >= meta_numero else "Em Atenção"
+    return "Dentro da meta" if ok else "Em Atenção"
 
 
 def _ultimo_valor(hist_ano: dict):
@@ -53,7 +70,15 @@ def get_all_data() -> dict:
         val_fev   = hist_26.get("Fevereiro")
         val_atual = _ultimo_valor(hist_26)
 
-        status = _calc_status(val_atual, m.get("meta_numero"), bool(m.get("menor_melhor", 1)))
+        meta_op  = m.get("meta_operador")
+        meta_num = m.get("meta_numero")
+        status = _calc_status(val_atual, meta_op, meta_num)
+
+        # Texto exibível da meta (gerado automaticamente se vazio)
+        if meta_op and meta_num is not None:
+            meta_exib = f"{meta_op} {meta_num}"
+        else:
+            meta_exib = "Sem meta"
 
         indicadores.append({
             "codigo":        cod,
@@ -61,9 +86,9 @@ def get_all_data() -> dict:
             "tipo":          m.get("tipo") or "Operacional",
             "periodicidade": m.get("periodicidade") or "Mensal",
             "unidade":       m.get("unidade") or "",
-            "meta":          m.get("meta_texto") or ("Meta a definir" if not m.get("meta_numero") else str(m["meta_numero"])),
-            "meta_numero":   m.get("meta_numero"),
-            "menor_melhor":  bool(m.get("menor_melhor", 1)),
+            "meta":          meta_exib,
+            "meta_operador": meta_op,
+            "meta_numero":   meta_num,
             "resultado_jan": val_jan,
             "resultado_fev": val_fev,
             "status":        status,
@@ -76,8 +101,8 @@ def get_all_data() -> dict:
             "nome":         m["nome_indicador"],
             "unidade":      m.get("unidade") or "",
             "dados":        hist,
+            "meta_operador": m.get("meta_operador"),
             "meta_num":     m.get("meta_numero"),
-            "menor_melhor": bool(m.get("menor_melhor", 1)),
         }
 
     # sub_raw para gráficos — lido dos subindicadores reais
@@ -127,17 +152,20 @@ def get_all_data() -> dict:
                 "causa": "", "acao": "", "responsavel": "", "prazo": "",
             })
 
+    # ── Stats coerentes com nova lógica de status ─────────────────────────────
     total       = len(indicadores)
-    com_meta    = sum(1 for i in indicadores if i["meta_numero"] is not None)
+    com_meta    = sum(1 for i in indicadores if i["meta_operador"] and i["meta_numero"] is not None)
+    atingidas   = sum(1 for i in indicadores if i["status"] == "Dentro da meta")
     em_atencao  = sum(1 for i in indicadores if i["status"] == "Em Atenção")
+    sem_meta    = sum(1 for i in indicadores if i["status"] == "Sem meta")
     a_preencher = sum(1 for i in indicadores if i["status"] == "A preencher")
 
     stats = {
         "total":              total,
         "com_meta":           com_meta,
-        "sem_meta":           total - com_meta,
+        "sem_meta":           sem_meta,
+        "atingidas":          atingidas,
         "em_atencao":         em_atencao,
-        "pendentes_processo": 0,
         "a_preencher":        a_preencher,
         "periodo":            config.get("periodo_atual") or "—",
         "responsavel":        config.get("responsavel") or "—",

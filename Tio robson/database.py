@@ -35,8 +35,9 @@ _SCHEMA = [
         tipo              TEXT DEFAULT 'Operacional',
         periodicidade     TEXT DEFAULT 'Mensal',
         unidade           TEXT,
-        meta_texto        TEXT,
+        meta_operador     TEXT,
         meta_numero       REAL,
+        meta_texto        TEXT,
         menor_melhor      INTEGER DEFAULT 1,
         observacoes       TEXT,
         indicador_ativo   INTEGER DEFAULT 1,
@@ -100,6 +101,23 @@ def init_db():
         for stmt in _SCHEMA:
             conn.execute(stmt)
         conn.commit()
+        # Migração segura: adiciona meta_operador se não existir (banco já criado)
+        try:
+            conn.execute("ALTER TABLE indicadores ADD COLUMN meta_operador TEXT")
+            conn.commit()
+            # Converte menor_melhor legado para meta_operador onde meta_numero existe
+            conn.execute("""
+                UPDATE indicadores
+                SET meta_operador = CASE
+                    WHEN menor_melhor = 1 AND meta_numero IS NOT NULL THEN '<='
+                    WHEN menor_melhor = 0 AND meta_numero IS NOT NULL THEN '>='
+                    ELSE NULL
+                END
+                WHERE meta_operador IS NULL
+            """)
+            conn.commit()
+        except Exception:
+            pass  # coluna já existe
         _seed_config_defaults(conn)
     finally:
         conn.close()
@@ -161,20 +179,35 @@ def upsert_indicador(rec: dict) -> bool:
     try:
         rec = dict(rec)
         rec["atualizado_em"] = datetime.now().isoformat(sep=" ", timespec="seconds")
+        # Garante legado: se meta_texto não vier, gera a partir de operador+numero
+        if not rec.get("meta_texto") and rec.get("meta_operador") and rec.get("meta_numero") is not None:
+            rec["meta_texto"] = f"{rec['meta_operador']} {rec['meta_numero']}"
+        # Garante legado: menor_melhor derivado de meta_operador
+        op = rec.get("meta_operador", "")
+        if op in ("<", "<="):
+            rec.setdefault("menor_melhor", 1)
+        elif op in (">", ">="):
+            rec.setdefault("menor_melhor", 0)
+        else:
+            rec.setdefault("menor_melhor", 1)
+
         conn.execute("""
             INSERT INTO indicadores
                 (codigo_indicador, nome_indicador, tipo, periodicidade, unidade,
-                 meta_texto, meta_numero, menor_melhor, observacoes, indicador_ativo, atualizado_em)
+                 meta_operador, meta_numero, meta_texto, menor_melhor,
+                 observacoes, indicador_ativo, atualizado_em)
             VALUES
                 (:codigo_indicador,:nome_indicador,:tipo,:periodicidade,:unidade,
-                 :meta_texto,:meta_numero,:menor_melhor,:observacoes,:indicador_ativo,:atualizado_em)
+                 :meta_operador,:meta_numero,:meta_texto,:menor_melhor,
+                 :observacoes,:indicador_ativo,:atualizado_em)
             ON CONFLICT(codigo_indicador) DO UPDATE SET
                 nome_indicador  = excluded.nome_indicador,
                 tipo            = excluded.tipo,
                 periodicidade   = excluded.periodicidade,
                 unidade         = excluded.unidade,
-                meta_texto      = excluded.meta_texto,
+                meta_operador   = excluded.meta_operador,
                 meta_numero     = excluded.meta_numero,
+                meta_texto      = excluded.meta_texto,
                 menor_melhor    = excluded.menor_melhor,
                 observacoes     = excluded.observacoes,
                 indicador_ativo = excluded.indicador_ativo,

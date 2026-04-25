@@ -238,14 +238,14 @@ def _chart_donut(stats):
     fig.patch.set_facecolor("#FFFFFF")
 
     # Paleta da referência: cinza=Atenção, laranja-vermelho=Abaixo, verde=Dentro, creme=Sem meta
-    labels = ["Em Atenção", "Abaixo da Meta", "Dentro da Meta", "Sem Meta / Pendente"]
+    labels = ["Dentro da Meta", "Em Atenção", "Sem Meta", "A Preencher"]
     values = [
+        stats.get("atingidas", 0),
         stats["em_atencao"],
-        stats.get("abaixo_meta", 0),
-        stats.get("atingidas", stats["com_meta"]),
-        stats["sem_meta"],
+        stats.get("sem_meta", 0),
+        stats.get("a_preencher", 0),
     ]
-    colors = ["#94A3B8", "#C8102E", "#10B981", "#E2E8F0"]
+    colors = ["#10B981", "#C8102E", "#94A3B8", "#E2E8F0"]
 
     pairs = [(l, v, c) for l, v, c in zip(labels, values, colors) if v > 0]
     if not pairs:
@@ -536,41 +536,42 @@ class PainelExecutivoPanel(QWidget):
         rb.setContentsMargins(20,16,20,20)
         rb.setSpacing(12)
         
-        periodo = stats.get("periodo", "Jan a Fev/2026")
-        pct_atencao = (stats['em_atencao']/max(stats['total'],1)*100)
-        pct_abaixo  = (stats.get('abaixo_meta',0)/max(stats['total'],1)*100)
-        txt = QLabel(
-            f"No período de {periodo}, o desempenho geral apresenta "
-            f"{pct_atencao:.0f}% dos indicadores em atenção e "
-            f"{pct_abaixo:.0f}% abaixo da meta."
-        )
-        txt.setFont(QFont("Segoe UI", 9))
-        txt.setStyleSheet("color:#475569; background:transparent; border:none;")
-        txt.setWordWrap(True)
-        rb.addWidget(txt)
+        periodo = stats.get("periodo", "—")
+        pct_meta    = com_meta / max(total, 1) * 100
+        pct_ok      = atingidas / max(com_meta, 1) * 100 if com_meta else 0
+        pct_atencao = em_atencao / max(com_meta, 1) * 100 if com_meta else 0
 
-        # Bullets do Resumo com ícones circulares desenhados (sem emoji)
+        sumario = QLabel(
+            f"Período: {periodo}.  "
+            f"{com_meta} de {total} indicadores possuem meta definida. "
+            f"Destes, {atingidas} estão dentro da meta e {em_atencao} em atenção. "
+            f"{sem_meta + a_preencher} ainda sem meta ou sem valor."
+        )
+        sumario.setFont(QFont("Segoe UI", 8))
+        sumario.setStyleSheet("color:#475569; background:transparent; border:none; padding: 2px 0px;")
+        sumario.setWordWrap(True)
+        rb.addWidget(sumario)
+
+        # Bullets com os 4 status da nova lógica
         def _bullet_row(color, bold_text, light_text):
             item = QWidget()
             item.setStyleSheet("background: transparent; border: none;")
             hl = QHBoxLayout(item)
-            hl.setContentsMargins(0, 5, 0, 5)
+            hl.setContentsMargins(0, 4, 0, 4)
             hl.setSpacing(12)
-            # Círculo colorido
             dot = QLabel()
-            dot.setFixedSize(22, 22)
+            dot.setFixedSize(20, 20)
             dot.setStyleSheet(f"""
-                background: {color}15;
+                background: {color}18;
                 border: 2px solid {color};
-                border-radius: 11px;
+                border-radius: 10px;
             """)
             hl.addWidget(dot)
-            # Texto
             txt_col = QVBoxLayout()
             txt_col.setSpacing(0)
             b = QLabel(bold_text)
             b.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-            b.setStyleSheet(f"color: #1E293B; background:transparent; border:none;")
+            b.setStyleSheet("color: #1E293B; background:transparent; border:none;")
             l = QLabel(light_text)
             l.setFont(QFont("Segoe UI", 8))
             l.setStyleSheet("color: #64748B; background:transparent; border:none;")
@@ -579,14 +580,27 @@ class PainelExecutivoPanel(QWidget):
             hl.addLayout(txt_col, 1)
             return item
 
-        rb.addWidget(_bullet_row("#374151", f"{stats['com_meta']} indicadores monitorados",
-                                 "100% possuem meta definida"))
-        rb.addWidget(_bullet_row("#D97706", f"{stats['em_atencao']} indicador em atenção",
-                                 "Acompanhamento recomendado"))
-        rb.addWidget(_bullet_row("#DC2626", f"{stats.get('abaixo_meta',0)} indicador abaixo da meta",
-                                 "Ação imediata necessária"))
-        rb.addWidget(_bullet_row("#2563EB", f"{stats.get('atingidas',0)} indicadores atingiram a meta",
-                                 "Foque nas ações corretivas"))
+        rb.addWidget(_bullet_row(
+            "#059669",
+            f"{atingidas} dentro da meta",
+            f"{pct_ok:.0f}% dos indicadores com meta"
+        ))
+        rb.addWidget(_bullet_row(
+            "#D97706",
+            f"{em_atencao} em atenção",
+            f"{pct_atencao:.0f}% das metas não atingidas — acompanhamento necessário"
+        ))
+        rb.addWidget(_bullet_row(
+            "#64748B",
+            f"{sem_meta} sem meta definida",
+            "Defina meta na Base de Dados"
+        ))
+        if a_preencher > 0:
+            rb.addWidget(_bullet_row(
+                "#94A3B8",
+                f"{a_preencher} a preencher",
+                "Nenhum valor registrado no período"
+            ))
 
         rb.addStretch()
         r_ly.addWidget(r_body, 1)

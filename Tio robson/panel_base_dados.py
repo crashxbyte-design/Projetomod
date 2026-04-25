@@ -329,19 +329,36 @@ class BaseDadosPanel(QWidget):
         # Meta
         card_ly.addWidget(_section("Meta e Comportamento"))
         meta_row = QHBoxLayout(); meta_row.setSpacing(16)
-        self.f_ind_meta_txt = _fld("Ex: ≤ 3")
-        self.f_ind_meta_num = _fld("3")
-        meta_row.addWidget(_row("Meta (texto)", self.f_ind_meta_txt), 2)
-        meta_row.addWidget(_row("Meta (número numérico)", self.f_ind_meta_num), 1)
+
+        self.f_ind_meta_op  = _cbo(["Sem meta", "<", "<=", "=", ">=", ">"])
+        self.f_ind_meta_num = _fld("Ex: 3, 95, 100")
+        meta_row.addWidget(_row("Operador da Meta", self.f_ind_meta_op))
+        meta_row.addWidget(_row("Valor da Meta (número)", self.f_ind_meta_num), 1)
         card_ly.addLayout(meta_row)
 
+        # Preview automático da regra
+        self.f_meta_preview = QLabel("Pré-visualização: definir operador e valor")
+        self.f_meta_preview.setFont(QFont("Segoe UI", 8))
+        self.f_meta_preview.setStyleSheet("color:#64748B;background:#F8FAFC;border:1px solid #E2E8F0;"
+                                          "border-radius:6px;padding:8px 12px;")
+        self.f_meta_preview.setWordWrap(True)
+        card_ly.addWidget(self.f_meta_preview)
+
+        def _update_preview():
+            op  = self.f_ind_meta_op.currentText()
+            num = self.f_ind_meta_num.text().strip()
+            if op == "Sem meta" or not num:
+                self.f_meta_preview.setText("Sem meta definida para este indicador")
+            else:
+                self.f_meta_preview.setText(f"Dentro da meta se resultado  {op}  {num}")
+        self.f_ind_meta_op.currentTextChanged.connect(_update_preview)
+        self.f_ind_meta_num.textChanged.connect(_update_preview)
+
         chk_row = QHBoxLayout(); chk_row.setSpacing(24)
-        self.f_ind_menor = QCheckBox("Menor valor é melhor")
         self.f_ind_ativo = QCheckBox("Indicador Ativo no Sistema")
         self.f_ind_ativo.setChecked(True)
-        for c in [self.f_ind_menor, self.f_ind_ativo]:
-            c.setStyleSheet(f"QCheckBox{{color:#0F172A;font-family:'Segoe UI';font-size:10pt;font-weight:500;background:transparent;border:none;}} QCheckBox::indicator{{width:18px;height:18px;border:1px solid #CBD5E1;border-radius:4px;background:#F8FAFC;}} QCheckBox::indicator:checked{{background:{VERMELHO_ESC};border-color:{VERMELHO_ESC};}}")
-        chk_row.addWidget(self.f_ind_menor); chk_row.addWidget(self.f_ind_ativo); chk_row.addStretch()
+        self.f_ind_ativo.setStyleSheet(f"QCheckBox{{color:#0F172A;font-family:'Segoe UI';font-size:10pt;font-weight:500;background:transparent;border:none;}} QCheckBox::indicator{{width:18px;height:18px;border:1px solid #CBD5E1;border-radius:4px;background:#F8FAFC;}} QCheckBox::indicator:checked{{background:{VERMELHO_ESC};border-color:{VERMELHO_ESC};}}")
+        chk_row.addWidget(self.f_ind_ativo); chk_row.addStretch()
         card_ly.addSpacing(6)
         card_ly.addLayout(chk_row)
 
@@ -661,10 +678,11 @@ class BaseDadosPanel(QWidget):
         self.f_ind_tipo.setCurrentText(m.get("tipo") or "Operacional")
         self.f_ind_per.setCurrentText(m.get("periodicidade") or "Mensal")
         self.f_ind_uni.setText(m.get("unidade") or "")
-        self.f_ind_meta_txt.setText(m.get("meta_texto") or "")
+        # Nova lógica: usa meta_operador; fallback de legado
+        op = m.get("meta_operador") or "Sem meta"
+        self.f_ind_meta_op.setCurrentText(op if op in ["<", "<=", "=", ">=", ">"] else "Sem meta")
         mn = m.get("meta_numero")
         self.f_ind_meta_num.setText(str(mn) if mn is not None else "")
-        self.f_ind_menor.setChecked(bool(m.get("menor_melhor", 1)))
         self.f_ind_ativo.setChecked(bool(m.get("indicador_ativo", 1)))
         self.f_ind_obs.setPlainText(m.get("observacoes") or "")
         self.btn_ind_del.setVisible(True)
@@ -675,7 +693,7 @@ class BaseDadosPanel(QWidget):
         self.f_ind_cod.setReadOnly(False)
         self.f_ind_nome.clear()
         self.f_ind_uni.clear()
-        self.f_ind_meta_txt.clear()
+        self.f_ind_meta_op.setCurrentIndex(0)  # "Sem meta"
         self.f_ind_meta_num.clear()
         self.f_ind_obs.clear()
         self.f_ind_ativo.setChecked(True)
@@ -688,10 +706,13 @@ class BaseDadosPanel(QWidget):
         if not cod:
             self._msg_ind("Código é obrigatório.", LARANJA)
             return
-        
-        mn = self.f_ind_meta_num.text().strip().replace(",", ".")
-        try: mn = float(mn) if mn else None
+
+        op  = self.f_ind_meta_op.currentText()
+        mn_txt = self.f_ind_meta_num.text().strip().replace(",", ".")
+        try: mn = float(mn_txt) if mn_txt else None
         except ValueError: mn = None
+
+        meta_operador = op if op in ("<", "<=", "=", ">=", ">") else None
 
         rec = {
             "codigo_indicador": cod,
@@ -699,9 +720,11 @@ class BaseDadosPanel(QWidget):
             "tipo": self.f_ind_tipo.currentText(),
             "periodicidade": self.f_ind_per.currentText(),
             "unidade": self.f_ind_uni.text().strip(),
-            "meta_texto": self.f_ind_meta_txt.text().strip(),
+            "meta_operador": meta_operador,
             "meta_numero": mn,
-            "menor_melhor": 1 if self.f_ind_menor.isChecked() else 0,
+            # Campos legado — gerados automaticamente
+            "meta_texto": f"{meta_operador} {mn}" if meta_operador and mn is not None else None,
+            "menor_melhor": 1 if op in ("<", "<=") else 0,
             "indicador_ativo": 1 if self.f_ind_ativo.isChecked() else 0,
             "observacoes": self.f_ind_obs.toPlainText().strip()
         }
