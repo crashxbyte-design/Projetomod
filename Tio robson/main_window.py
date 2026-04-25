@@ -17,12 +17,12 @@ from styles import (
 
 
 NAV_ITEMS = [
-    ("🏠", "Painel\nExecutivo",        "painel"),
-    ("📊", "Indicadores",               "indicadores"),
-    ("📈", "Gráficos e\nSubindicadores","subindicadores"),
-    ("📋", "Pendências /\nObservações", "pendencias"),
+    ("📊", "Painel Executivo",          "painel"),
+    ("📌", "Indicadores",                "indicadores"),
+    ("📈", "Gráficos e Subindicadores",  "subindicadores"),
+    ("⚠️",  "Pendências / Observações", "pendencias"),
     ("🗄️", "Base de Dados",             "base_dados"),
-    ("ℹ️", "Instruções",               "instrucoes"),
+    ("📖", "Instruções",                "instrucoes"),
 ]
 
 
@@ -32,49 +32,53 @@ class SidebarButton(QPushButton):
         self.key = key
         self._active = False
         self.setCheckable(True)
-        self.setFixedHeight(54)
+        self.setFixedHeight(52)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         ly = QHBoxLayout(self)
-        ly.setContentsMargins(18, 0, 10, 0)
+        ly.setContentsMargins(16, 0, 12, 0)
         ly.setSpacing(14)
 
         self.ico_lbl = QLabel(icon_txt)
-        self.ico_lbl.setFont(QFont("Segoe UI Emoji", 14))
-        self.ico_lbl.setFixedWidth(24)
-        self.ico_lbl.setFixedHeight(24)
+        self.ico_lbl.setFont(QFont("Segoe UI Emoji", 13))
+        self.ico_lbl.setFixedWidth(22)
         self.ico_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ico_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         ly.addWidget(self.ico_lbl)
 
-        self.txt_lbl = QLabel(label.replace('\n', ' '))
-        self.txt_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.txt_lbl = QLabel(label)
+        self.txt_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Medium))
         self.txt_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.txt_lbl.setWordWrap(True)
+        self.txt_lbl.setWordWrap(False)
         ly.addWidget(self.txt_lbl, 1)
 
         self._update_style(False)
 
     def _update_style(self, active):
         self._active = active
-        bg  = "#B91C1C" if active else "transparent"
-        fg  = "#FFFFFF" if active else "#334155"
-        hov = "#DC2626" if active else "#F1F5F9"
+        if active:
+            bg  = "#B91C1C"
+            fg  = "#FFFFFF"
+            hov = "#991B1B"
+        else:
+            bg  = "transparent"
+            fg  = "#475569"
+            hov = "#F1F5F9"
 
         self.setStyleSheet(f"""
             QPushButton {{
                 background: {bg};
                 border: none;
                 border-radius: 8px;
-                margin: 4px 12px;
+                margin: 2px 10px;
                 padding: 0px;
             }}
             QPushButton:hover {{ background: {hov}; }}
         """)
         transparent = "background: transparent; border: none;"
         self.ico_lbl.setStyleSheet(f"color: {fg}; {transparent}")
-        self.txt_lbl.setStyleSheet(f"color: {fg}; {transparent}")
+        self.txt_lbl.setStyleSheet(f"color: {fg}; {transparent}; font-weight: {'700' if active else '500'};")
 
     def setActive(self, v):
         self._update_style(v)

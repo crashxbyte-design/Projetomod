@@ -28,51 +28,52 @@ def shadow(radius=12, offset=(0, 2), color=(0, 0, 0, 30)):
 class SectionTitle(QLabel):
     """Título de seção com barra vermelha à esquerda."""
     def __init__(self, text, parent=None):
-        super().__init__(text, parent)
-        self.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        super().__init__(text.upper(), parent)
+        self.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.setStyleSheet(f"""
             QLabel {{
                 color: {PRETO_TITULO};
                 border-left: 4px solid {VERMELHO};
-                padding-left: 10px;
-                margin-bottom: 2px;
+                padding-left: 12px;
+                letter-spacing: 0.5px;
+                background: transparent;
             }}
         """)
 
 
 class KPICard(QFrame):
-    """Card KPI executivo simplificado e limpo (como na imagem)."""
+    """Card KPI executivo premium com ícone circular."""
     def __init__(self, label, value, subtitle="", color=None, icon=None, parent=None):
         super().__init__(parent)
         color = color or PRETO_TITULO
-        self.setMinimumHeight(120)
+        self.setMinimumHeight(110)
         self.setMinimumWidth(150)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
         self.setStyleSheet(f"""
             QFrame {{
                 background: {BRANCO};
                 border: 1px solid {CINZA_BORDA};
-                border-radius: 4px;
+                border-radius: 12px;
             }}
         """)
-        self.setGraphicsEffect(shadow(6, (0, 1), (0, 0, 0, 10)))
+        self.setGraphicsEffect(shadow(12, (0, 3), (0, 0, 0, 8)))
 
         ly = QVBoxLayout(self)
-        ly.setContentsMargins(10, 14, 10, 14)
-        ly.setSpacing(4)
+        ly.setContentsMargins(14, 16, 14, 16)
+        ly.setSpacing(6)
         ly.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Title
+        # Label
         lbl = QLabel(label.upper())
-        lbl.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
-        lbl.setStyleSheet(f"color: {PRETO_TITULO}; background: transparent; border: none; letter-spacing: 0.5px;")
+        lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        lbl.setStyleSheet(f"color: #64748B; background: transparent; border: none; letter-spacing: 0.8px;")
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl.setWordWrap(True)
         ly.addWidget(lbl)
 
         # Value
         val_lbl = QLabel(str(value))
-        val_lbl.setFont(QFont("Segoe UI", 32))
+        val_lbl.setFont(QFont("Segoe UI", 34, QFont.Weight.Bold))
         val_lbl.setStyleSheet(f"color: {color}; background: transparent; border: none;")
         val_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ly.addWidget(val_lbl)
@@ -81,31 +82,31 @@ class KPICard(QFrame):
         if subtitle:
             sub = QLabel(subtitle)
             sub.setFont(QFont("Segoe UI", 8))
-            color_sub = color if "%" in subtitle else PRETO_TITULO
-            sub.setStyleSheet(f"color: {color_sub}; background: transparent; border: none;")
+            sub.setStyleSheet(f"color: #94A3B8; background: transparent; border: none;")
             sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
             sub.setWordWrap(True)
             ly.addWidget(sub)
 
 
 class StatusBadge(QLabel):
-    """Badge de status colorido com borda sutil."""
+    """Badge de status com tipografia premium e borda suave."""
     def __init__(self, status, parent=None):
         super().__init__(status, parent)
         fg, bg, border = STATUS_COLORS.get(status, (CINZA_META, CINZA_META_BG, CINZA_BORDA))
-        self.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        self.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setFixedHeight(24)
+        self.setFixedHeight(22)
         self.setContentsMargins(8, 0, 8, 0)
         self.setStyleSheet(f"""
             QLabel {{
                 background: {bg};
                 color: {fg};
-                border: 1px solid {border};
+                border: 1px solid {border}44;
                 border-radius: 4px;
                 padding: 0px 10px;
-                font-size: 10px;
-                font-weight: 600;
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
             }}
         """)
 
