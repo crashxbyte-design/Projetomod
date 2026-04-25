@@ -1,15 +1,11 @@
-"""
-panel_historico.py - Lançamento e edição de histórico mensal diretamente no app.
-Fonte única: SQLite (database.dados_historicos).
-"""
+"""panel_historico.py — Lançamento e edição de histórico mensal."""
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QPushButton, QComboBox, QLineEdit,
-    QGridLayout, QMessageBox, QSizePolicy
+    QGridLayout, QSizePolicy
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-
 import database as db
 from styles import (
     VERMELHO, VERMELHO_ESC, BRANCO, CINZA_BG, CINZA_BORDA,
@@ -17,167 +13,201 @@ from styles import (
 )
 from widgets import shadow
 
-MESES = [
-    "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-    "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
-]
-ANOS = [str(a) for a in range(2021, 2028)]
+MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+         "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
+ANOS  = [str(a) for a in range(2021, 2028)]
+TRIM_LABELS = ["T1 — JAN / FEV / MAR", "T2 — ABR / MAI / JUN",
+               "T3 — JUL / AGO / SET", "T4 — OUT / NOV / DEZ"]
 
-def _btn(txt, primary=False):
-    b = QPushButton(txt)
-    b.setFixedHeight(34)
-    b.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold if primary else QFont.Weight.Normal))
+CSS_FLD = ("background:#fff;border:1px solid #D1D5DB;border-radius:6px;"
+           "padding:4px 8px;color:#111827;font-family:'Segoe UI';text-align:center;")
+
+def _lbl(t, bold=False, size=9, color=PRETO_TITULO):
+    l = QLabel(t); l.setFont(QFont("Segoe UI", size, QFont.Weight.Bold if bold else QFont.Weight.Normal))
+    l.setStyleSheet(f"color:{color};background:transparent;border:none;"); return l
+
+def _cbx():
+    w = QComboBox(); w.setFixedHeight(36)
+    w.setStyleSheet(
+        f"QComboBox{{background:#fff;border:1px solid #D1D5DB;border-radius:6px;padding:4px 10px;color:#111827;}}"
+        f"QComboBox::drop-down{{border:none;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};}}")
+    return w
+
+def _btn(t, primary=False):
+    b = QPushButton(t); b.setFixedHeight(36); b.setCursor(Qt.CursorShape.PointingHandCursor)
+    b.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
     if primary:
-        b.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:{BRANCO};border:none;border-radius:5px;padding:0 18px;}}QPushButton:hover{{background:{VERMELHO};}}")
+        b.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:6px;padding:0 20px;}}QPushButton:hover{{background:{VERMELHO};}}")
     else:
-        b.setStyleSheet(f"QPushButton{{background:{BRANCO};color:{PRETO_TITULO};border:1px solid {CINZA_BORDA};border-radius:5px;padding:0 14px;}}QPushButton:hover{{background:#F5F5F5;}}")
+        b.setStyleSheet(f"QPushButton{{background:#F3F4F6;color:#374151;border:1px solid #D1D5DB;border-radius:6px;padding:0 16px;}}QPushButton:hover{{background:#E5E7EB;}}")
     return b
 
-def _field_edit(placeholder=""):
-    w = QLineEdit()
-    w.setPlaceholderText(placeholder)
-    w.setFont(QFont("Segoe UI", 10))
-    w.setFixedHeight(36)
-    w.setStyleSheet(f"""
-        QLineEdit{{
-            background:{BRANCO};border:1px solid {CINZA_BORDA};
-            border-radius:4px;padding:4px 10px;color:{PRETO_TITULO};
-        }}
-        QLineEdit:focus{{border-color:{VERMELHO};}}
-    """)
+def _fld():
+    w = QLineEdit(); w.setFixedHeight(38); w.setAlignment(Qt.AlignmentFlag.AlignRight)
+    w.setPlaceholderText("—")
+    w.setStyleSheet(f"QLineEdit{{{CSS_FLD}}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};}}")
     return w
+
+def _sec_badge(t, color="#6366F1"):
+    f = QFrame(); f.setStyleSheet(f"QFrame{{background:{color}18;border:1px solid {color}40;border-radius:4px;}}")
+    l = QHBoxLayout(f); l.setContentsMargins(10,4,10,4)
+    lb = _lbl(t, bold=True, size=8, color=color); l.addWidget(lb); return f
 
 
 class HistoricoPanel(QWidget):
     def __init__(self, data, parent=None):
-        super().__init__(parent)
-        self.data = data
-        self._inputs = {}   # {mes: QLineEdit}
-        self._build_ui()
-        self._populate_selector()
+        super().__init__(parent); self.data = data
+        self._inputs = {}
+        self._build_ui(); self._populate_selector()
 
     def _build_ui(self):
-        root = QVBoxLayout(self); root.setContentsMargins(0,0,0,0); root.setSpacing(0)
+        root = QVBoxLayout(self); root.setContentsMargins(0,0,0,0)
         scroll = QScrollArea(); scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
         root.addWidget(scroll)
-        container = QWidget(); container.setStyleSheet(f"background:{CINZA_BG};")
-        scroll.setWidget(container)
-        main = QVBoxLayout(container); main.setContentsMargins(28,24,28,28); main.setSpacing(20)
+        ctr = QWidget(); ctr.setStyleSheet("background:transparent;")
+        scroll.setWidget(ctr)
+        main = QVBoxLayout(ctr); main.setContentsMargins(32,32,32,32); main.setSpacing(24)
 
-        # ── Título ────────────────────────────────────────────────────────
-        title = QLabel("LANÇAMENTO DE HISTÓRICO MENSAL")
-        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        title.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-        sub = QLabel("Registre ou edite os valores mensais de cada indicador diretamente no sistema.")
-        sub.setFont(QFont("Segoe UI", 9))
-        sub.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-        main.addWidget(title); main.addWidget(sub)
+        # ── Header bar ────────────────────────────────────────────────
+        hdr = QFrame()
+        hdr.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        hdr.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        hdr_ly = QHBoxLayout(hdr); hdr_ly.setContentsMargins(32,24,32,24); hdr_ly.setSpacing(24)
 
-        # ── Seletores ─────────────────────────────────────────────────────
-        sel_frame = QFrame()
-        sel_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        sel_frame.setGraphicsEffect(shadow(6,(0,2),(0,0,0,10)))
-        sel_ly = QHBoxLayout(sel_frame); sel_ly.setContentsMargins(20,16,20,16); sel_ly.setSpacing(16)
+        ttl = QVBoxLayout(); ttl.setSpacing(6)
+        ttl.addWidget(_lbl("Lançamento Mensal", bold=True, size=16, color="#0F172A"))
+        ttl.addWidget(_lbl("Selecione os parâmetros abaixo para inserir resultados.", size=10, color="#64748B"))
+        hdr_ly.addLayout(ttl, 1)
 
-        lbl_ind = QLabel("Indicador:")
-        lbl_ind.setFont(QFont("Segoe UI",9,QFont.Weight.Bold))
-        lbl_ind.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-        sel_ly.addWidget(lbl_ind)
+        sep1 = QFrame(); sep1.setFrameShape(QFrame.Shape.VLine); sep1.setStyleSheet("background:#E2E8F0;border:none;"); sep1.setFixedWidth(1)
+        hdr_ly.addWidget(sep1)
 
-        self.sel_ind = QComboBox()
-        self.sel_ind.setMinimumWidth(300)
-        self.sel_ind.setFixedHeight(34)
-        self.sel_ind.setFont(QFont("Segoe UI",9))
-        self.sel_ind.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QComboBox::drop-down{{border:none;}}")
-        sel_ly.addWidget(self.sel_ind)
+        params_ly = QHBoxLayout(); params_ly.setSpacing(16)
+        def _lbl2(t): return _lbl(t, bold=True, size=9, color="#475569")
+        
+        ind_col = QVBoxLayout(); ind_col.setSpacing(6)
+        ind_col.addWidget(_lbl2("Indicador Pai"))
+        self.sel_ind = _cbx(); self.sel_ind.setMinimumWidth(260)
+        self.sel_ind.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}")
+        ind_col.addWidget(self.sel_ind)
+        params_ly.addLayout(ind_col)
 
-        lbl_sub = QLabel("Subindicador:")
-        lbl_sub.setFont(QFont("Segoe UI",9,QFont.Weight.Bold))
-        lbl_sub.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-        sel_ly.addWidget(lbl_sub)
+        sub_col = QVBoxLayout(); sub_col.setSpacing(6)
+        sub_col.addWidget(_lbl2("Subindicador Alvo"))
+        self.sel_sub = _cbx(); self.sel_sub.setMinimumWidth(220)
+        self.sel_sub.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}")
+        sub_col.addWidget(self.sel_sub)
+        params_ly.addLayout(sub_col)
 
-        self.sel_sub = QComboBox()
-        self.sel_sub.setMinimumWidth(260)
-        self.sel_sub.setFixedHeight(34)
-        self.sel_sub.setFont(QFont("Segoe UI",9))
-        self.sel_sub.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QComboBox::drop-down{{border:none;}}")
-        sel_ly.addWidget(self.sel_sub)
+        ano_col = QVBoxLayout(); ano_col.setSpacing(6)
+        ano_col.addWidget(_lbl2("Ano"))
+        self.sel_ano = _cbx(); self.sel_ano.addItems(ANOS); self.sel_ano.setCurrentText("2026")
+        self.sel_ano.setFixedWidth(100)
+        self.sel_ano.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}")
+        ano_col.addWidget(self.sel_ano)
+        params_ly.addLayout(ano_col)
+        
+        hdr_ly.addLayout(params_ly)
 
-        lbl_ano = QLabel("Ano:")
-        lbl_ano.setFont(QFont("Segoe UI",9,QFont.Weight.Bold))
-        lbl_ano.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-        sel_ly.addWidget(lbl_ano)
+        self.btn_load = QPushButton("Carregar Histórico")
+        self.btn_load.setFixedHeight(42); self.btn_load.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_load.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.btn_load.setStyleSheet(f"QPushButton{{background:#0F172A;color:#fff;border:none;border-radius:8px;padding:0 24px;}}QPushButton:hover{{background:#334155;}}")
+        
+        load_col = QVBoxLayout()
+        load_col.addStretch(); load_col.addWidget(self.btn_load)
+        hdr_ly.addLayout(load_col)
+        
+        main.addWidget(hdr)
 
-        self.sel_ano = QComboBox()
-        self.sel_ano.addItems(ANOS)
-        self.sel_ano.setCurrentText("2026")
-        self.sel_ano.setFixedHeight(34); self.sel_ano.setFixedWidth(90)
-        self.sel_ano.setFont(QFont("Segoe UI",9))
-        self.sel_ano.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QComboBox::drop-down{{border:none;}}")
-        sel_ly.addWidget(self.sel_ano)
-
-        self.btn_load = _btn("Carregar Dados")
-        sel_ly.addWidget(self.btn_load)
-        sel_ly.addStretch()
-        main.addWidget(sel_frame)
-
-        # ── Grade de meses ────────────────────────────────────────────────
+        # ── Grade mensal em trimestres ─────────────────────────────────
         self.grade_frame = QFrame()
-        self.grade_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        self.grade_frame.setGraphicsEffect(shadow(6,(0,2),(0,0,0,10)))
-        grade_outer = QVBoxLayout(self.grade_frame); grade_outer.setContentsMargins(24,20,24,20); grade_outer.setSpacing(16)
+        self.grade_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        self.grade_frame.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        g_ly = QVBoxLayout(self.grade_frame); g_ly.setContentsMargins(32,32,32,32); g_ly.setSpacing(24)
 
-        self.grade_title = QLabel("Selecione um indicador e clique em Carregar Dados")
-        self.grade_title.setFont(QFont("Segoe UI",10,QFont.Weight.Bold))
-        self.grade_title.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-        grade_outer.addWidget(self.grade_title)
+        # Title + mini-summary row
+        title_row = QHBoxLayout(); title_row.setSpacing(20)
+        self.grade_title = _lbl("Nenhum subindicador carregado", bold=True, size=13, color="#0F172A")
+        title_row.addWidget(self.grade_title, 1)
+        # Mini KPIs
+        for attr, label in [("kpi_preenchidos","MESES PREECHIDOS"), ("kpi_total","VALOR ACUMULADO"), ("kpi_media","MÉDIA MENSAL")]:
+            kpi = QFrame()
+            kpi.setStyleSheet(f"QFrame{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;}}")
+            kpi_ly = QVBoxLayout(kpi); kpi_ly.setContentsMargins(16,10,16,10); kpi_ly.setSpacing(2)
+            val_lbl = _lbl("—", bold=True, size=16, color="#0F172A")
+            lbl_lbl = _lbl(label, size=7, color="#64748B")
+            lbl_lbl.setStyleSheet("color:#64748B;letter-spacing:1px;background:transparent;border:none;font-weight:bold;")
+            kpi_ly.addWidget(val_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
+            kpi_ly.addWidget(lbl_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
+            setattr(self, attr, val_lbl)
+            title_row.addWidget(kpi)
+        g_ly.addLayout(title_row)
 
-        # Grid 4x3 (meses em ordem)
-        grid = QGridLayout(); grid.setSpacing(14)
-        for idx, mes in enumerate(MESES):
-            col = idx % 4; row_pos = idx // 4
-            cell = QVBoxLayout(); cell.setSpacing(4)
-            lbl = QLabel(mes)
-            lbl.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-            lbl.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-            inp = _field_edit("—")
-            inp.setAlignment(Qt.AlignmentFlag.AlignRight)
-            self._inputs[mes] = inp
-            cell.addWidget(lbl); cell.addWidget(inp)
-            wrap = QWidget(); wrap.setStyleSheet("background:transparent;border:none;")
-            wrap.setLayout(cell)
-            grid.addWidget(wrap, row_pos, col)
-        grade_outer.addLayout(grid)
+        sep2 = QFrame(); sep2.setFrameShape(QFrame.Shape.HLine); sep2.setStyleSheet("background:#E2E8F0;border:none;")
+        g_ly.addWidget(sep2)
 
-        # Linha de ação
-        act_ly = QHBoxLayout(); act_ly.setSpacing(10)
-        self.lbl_info = QLabel("")
-        self.lbl_info.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-        self.lbl_info.setStyleSheet("background:transparent;border:none;")
-        act_ly.addWidget(self.lbl_info)
-        act_ly.addStretch()
-        self.btn_clear = _btn("Limpar Campos")
-        self.btn_save  = _btn("💾  Salvar Histórico", primary=True)
-        act_ly.addWidget(self.btn_clear)
-        act_ly.addWidget(self.btn_save)
-        grade_outer.addLayout(act_ly)
-        main.addWidget(self.grade_frame, 1)
+        # Grid 4 trimestres x 3 meses
+        grid = QGridLayout(); grid.setSpacing(12)
+        for ti, trim in enumerate(TRIM_LABELS):
+            # Trim header
+            th = QLabel(trim)
+            th.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            th.setStyleSheet(f"color:#475569;background:#F1F5F9;border:1px solid #E2E8F0;border-radius:6px;padding:8px 12px;letter-spacing:1px;")
+            th.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            grid.addWidget(th, ti*2, 0, 1, 3)
+            # 3 months
+            for mi in range(3):
+                mes_idx = ti*3 + mi
+                mes = MESES[mes_idx]
+                cell = QFrame(); cell.setStyleSheet("QFrame{background:transparent;border:none;}")
+                c_ly = QVBoxLayout(cell); c_ly.setContentsMargins(4,4,4,4); c_ly.setSpacing(6)
+                lbl = _lbl(mes.upper(), bold=True, size=8, color="#64748B")
+                lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                inp = QLineEdit(); inp.setFixedHeight(42); inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                inp.setPlaceholderText("—")
+                inp.setStyleSheet(f"QLineEdit{{background:#FFFFFF;border:1px solid #CBD5E1;border-radius:6px;padding:4px 8px;color:#0F172A;font-size:12pt;font-weight:bold;}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);}}")
+                self._inputs[mes] = inp
+                c_ly.addWidget(lbl); c_ly.addWidget(inp)
+                grid.addWidget(cell, ti*2+1, mi)
+        g_ly.addLayout(grid)
 
-        # ── Tabela de valores já salvos ───────────────────────────────────
-        saved_frame = QFrame()
-        saved_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        saved_frame.setGraphicsEffect(shadow(6,(0,2),(0,0,0,10)))
-        saved_outer = QVBoxLayout(saved_frame); saved_outer.setContentsMargins(20,16,20,16); saved_outer.setSpacing(8)
+        # Action row
+        act = QHBoxLayout(); act.setSpacing(12)
+        self.lbl_info = _lbl("", bold=True, size=10, color=VERDE)
+        act.addWidget(self.lbl_info); act.addStretch()
+        
+        self.btn_clear = QPushButton("Limpar Campos")
+        self.btn_clear.setFixedHeight(42); self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear.setStyleSheet(f"QPushButton{{background:transparent;color:#475569;border:1px solid #CBD5E1;border-radius:8px;padding:0 24px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:#F1F5F9;}}")
+        
+        self.btn_save = QPushButton("Salvar Histórico")
+        self.btn_save.setFixedHeight(42); self.btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_save.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 32px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:{VERMELHO};}}")
+        
+        act.addWidget(self.btn_clear); act.addWidget(self.btn_save)
+        g_ly.addSpacing(8)
+        g_ly.addLayout(act)
+        main.addWidget(self.grade_frame)
 
-        hdr_lbl = QLabel("DADOS SALVOS NO BANCO — TODOS OS ANOS DISPONÍVEIS")
-        hdr_lbl.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-        hdr_lbl.setStyleSheet(f"color:{BRANCO};background:{VERMELHO_ESC};border-radius:4px;padding:6px 12px;border:none;")
-        saved_outer.addWidget(hdr_lbl)
+        # ── Tabela histórico salvo ─────────────────────────────────────
+        sv = QFrame()
+        sv.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        sv.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        sv_ly = QVBoxLayout(sv); sv_ly.setContentsMargins(32,24,32,24); sv_ly.setSpacing(16)
 
-        self.saved_grid = QGridLayout(); self.saved_grid.setSpacing(2)
-        saved_outer.addLayout(self.saved_grid)
-        main.addWidget(saved_frame)
+        sh_row = QHBoxLayout()
+        sh_row.addWidget(_lbl("VALORES ATUAIS NO BANCO DE DADOS", bold=True, size=9, color="#475569"))
+        sh_row.addStretch()
+        sv_ly.addLayout(sh_row)
+        sep3 = QFrame(); sep3.setFrameShape(QFrame.Shape.HLine)
+        sep3.setStyleSheet("background:#E2E8F0;border:none;"); sep3.setFixedHeight(1)
+        sv_ly.addWidget(sep3)
+
+        self.saved_grid = QGridLayout(); self.saved_grid.setSpacing(4)
+        sv_ly.addLayout(self.saved_grid)
+        main.addWidget(sv)
 
         # Signals
         self.btn_load.clicked.connect(self._load_historico)
@@ -187,11 +217,11 @@ class HistoricoPanel(QWidget):
         self.sel_sub.currentIndexChanged.connect(self._clear_inputs)
         self.sel_ano.currentIndexChanged.connect(self._load_historico)
 
+    # ── Lógica ────────────────────────────────────────────────────────
     def _populate_selector(self):
         self.sel_ind.blockSignals(True)
         self.sel_ind.clear()
-        inds = db.get_indicadores_ativos()
-        for i in inds:
+        for i in db.get_indicadores_ativos():
             self.sel_ind.addItem(f"{i['codigo_indicador']}  —  {i['nome_indicador']}", i['codigo_indicador'])
         self.sel_ind.blockSignals(False)
         self._on_indicador_changed()
@@ -200,129 +230,100 @@ class HistoricoPanel(QWidget):
         cod = self.sel_ind.currentData()
         self.sel_sub.clear()
         if cod:
-            subs = db.get_subindicadores(cod)
-            for s in subs:
+            for s in db.get_subindicadores(cod):
                 self.sel_sub.addItem(s['nome_subindicador'], s['id'])
         self._clear_inputs()
 
-    def _current_codigo(self):
-        return self.sel_ind.currentData()
-
-    def _current_sub_id(self):
-        return self.sel_sub.currentData()
-
-    def _current_ano(self):
-        return int(self.sel_ano.currentText())
+    def _current_sub_id(self): return self.sel_sub.currentData()
+    def _current_ano(self): return int(self.sel_ano.currentText())
 
     def _load_historico(self):
         sub_id = self._current_sub_id()
         ano    = self._current_ano()
         if not sub_id: return
+        sub  = db.get_subindicador(sub_id)
+        nome = sub['nome_subindicador'] if sub else f"ID:{sub_id}"
+        self.grade_title.setText(f"Subindicador: {nome}  |  {ano}")
 
-        sub = db.get_subindicador(sub_id)
-        nome = sub['nome_subindicador'] if sub else f"ID: {sub_id}"
-        self.grade_title.setText(f"Subindicador: {nome}  |  Ano: {ano}")
-
-        # Busca o histórico do subindicador
         hist = db.get_historico_subindicador(sub_id, [ano])
-        dados_ano = hist.get(ano, {})
+        dados = hist.get(ano, {})
 
-        # Preenche inputs
+        vals = []
         for mes in MESES:
-            val = dados_ano.get(mes)
+            val = dados.get(mes)
             inp = self._inputs[mes]
-            inp.setText(str(int(val)) if isinstance(val, float) and val == int(val) else str(val) if val is not None else "")
-            # Visual: verde se tem dado, normal se não tem
-            cor_borda = VERDE if val is not None else CINZA_BORDA
-            inp.setStyleSheet(f"""
-                QLineEdit{{
-                    background:{BRANCO};border:1px solid {cor_borda};
-                    border-radius:4px;padding:4px 10px;color:{PRETO_TITULO};
-                }}
-                QLineEdit:focus{{border-color:{VERMELHO};}}
-            """)
+            inp.setText(str(int(val)) if isinstance(val,float) and val==int(val) else str(val) if val is not None else "")
+            cor = "#10B981" if val is not None else CINZA_BORDA
+            inp.setStyleSheet(f"QLineEdit{{background:#fff;border:1.5px solid {cor};border-radius:6px;padding:4px 8px;text-align:center;color:#111827;}}QLineEdit:focus{{border-color:{VERMELHO_ESC};}}")
+            if val is not None: vals.append(val)
+
+        # Update mini KPIs
+        self.kpi_preenchidos.setText(f"{len(vals)}/12")
+        self.kpi_total.setText(f"{int(sum(vals))}" if vals else "—")
+        med = sum(vals)/len(vals) if vals else None
+        self.kpi_media.setText(f"{med:.1f}" if med is not None else "—")
 
         self.lbl_info.setText("")
         self._rebuild_saved_table(sub_id)
 
     def _rebuild_saved_table(self, sub_id):
         while self.saved_grid.count():
-            item = self.saved_grid.takeAt(0)
-            if item.widget(): item.widget().deleteLater()
+            it = self.saved_grid.takeAt(0)
+            if it.widget(): it.widget().deleteLater()
 
         hist = db.get_historico_subindicador(sub_id)
         if not hist:
-            lbl = QLabel("Nenhum dado salvo para este indicador.")
-            lbl.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-            self.saved_grid.addWidget(lbl, 0, 0)
-            return
+            lbl = _lbl("Nenhum dado salvo para este subindicador.", color="#9CA3AF", size=9)
+            self.saved_grid.addWidget(lbl, 0, 0); return
 
-        def _hdr(txt, col):
-            l = QLabel(txt.upper())
-            l.setFont(QFont("Segoe UI",7,QFont.Weight.Bold))
-            l.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
+        def _h(txt, col):
+            l = _lbl(txt.upper(), bold=True, size=7, color="#9CA3AF")
             l.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            l.setStyleSheet("color:#9CA3AF;letter-spacing:1px;background:transparent;border:none;padding:4px;")
             self.saved_grid.addWidget(l, 0, col)
-
-        _hdr("Ano", 0)
-        for ci, mes in enumerate(MESES, 1):
-            _hdr(mes[:3], ci)
+        _h("Ano", 0)
+        for ci, m in enumerate(MESES, 1): _h(m[:3], ci)
 
         for ri, ano in enumerate(sorted(hist.keys()), 1):
-            lbl_ano = QLabel(str(ano))
-            lbl_ano.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-            lbl_ano.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-            lbl_ano.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.saved_grid.addWidget(lbl_ano, ri, 0)
+            la = _lbl(str(ano), bold=True, size=9, color="#374151")
+            la.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            la.setStyleSheet(f"color:#374151;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:4px;padding:4px;font-weight:bold;")
+            self.saved_grid.addWidget(la, ri, 0)
             for ci, mes in enumerate(MESES, 1):
                 val = hist[ano].get(mes)
-                txt = str(int(val)) if isinstance(val, float) and val == int(val) else str(val) if val is not None else "–"
-                cor = PRETO_TITULO if val is not None else CINZA_BORDA
-                cell = QLabel(txt)
-                cell.setFont(QFont("Segoe UI",8))
-                cell.setStyleSheet(f"color:{cor};background:transparent;border:none;")
+                txt = str(int(val)) if isinstance(val,float) and val==int(val) else str(val) if val is not None else "–"
+                cor = "#111827" if val is not None else "#D1D5DB"
+                cell = _lbl(txt, size=9, color=cor)
                 cell.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                cell.setStyleSheet(f"color:{cor};background:transparent;border:none;padding:4px;")
                 self.saved_grid.addWidget(cell, ri, ci)
 
     def _save_historico(self):
-        sub_id = self._current_sub_id()
-        ano    = self._current_ano()
-        
+        sub_id = self._current_sub_id(); ano = self._current_ano()
         if not sub_id:
-            self.lbl_info.setText("⚠️ Selecione um indicador e um subindicador.")
-            self.lbl_info.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
-            return
-
-        saved = 0; errors = 0
+            self._st("⚠️ Selecione indicador e subindicador.", LARANJA); return
+        saved = errors = 0
         for mes in MESES:
-            txt = self._inputs[mes].text().strip().replace(",", ".")
-            if txt == "" or txt == "–":
-                continue
+            txt = self._inputs[mes].text().strip().replace(",",".")
+            if txt in ("","–"): continue
             try:
-                valor = float(txt)
-                if db.upsert_historico(sub_id, ano, mes, valor):
-                    saved += 1
-                else:
-                    errors += 1
-            except ValueError:
-                errors += 1
-
+                if db.upsert_historico(sub_id, ano, mes, float(txt)): saved += 1
+                else: errors += 1
+            except ValueError: errors += 1
         if errors:
-            self.lbl_info.setText(f"⚠️ {errors} valores inválidos (use números).")
-            self.lbl_info.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
+            self._st(f"⚠️ {errors} valores inválidos.", LARANJA)
         else:
-            self.lbl_info.setText(f"✅ {saved} meses salvos no banco com sucesso!")
-            self.lbl_info.setStyleSheet(f"color:{VERDE};background:transparent;border:none;")
-            self._load_historico()  # Atualiza visual
+            self._st(f"✅ {saved} meses salvos!", VERDE)
+            self._load_historico()
 
     def _clear_inputs(self):
         for inp in self._inputs.values():
             inp.clear()
-            inp.setStyleSheet(f"""
-                QLineEdit{{
-                    background:{BRANCO};border:1px solid {CINZA_BORDA};
-                    border-radius:4px;padding:4px 10px;color:{PRETO_TITULO};
-                }}
-                QLineEdit:focus{{border-color:{VERMELHO};}}
-            """)
+            inp.setStyleSheet(f"QLineEdit{{background:#fff;border:1px solid #D1D5DB;border-radius:6px;padding:4px 8px;text-align:center;color:#111827;}}QLineEdit:focus{{border-color:{VERMELHO_ESC};}}")
         self.lbl_info.setText("")
+        for attr in ["kpi_preenchidos","kpi_total","kpi_media"]:
+            getattr(self, attr).setText("—")
+
+    def _st(self, msg, cor):
+        self.lbl_info.setText(msg)
+        self.lbl_info.setStyleSheet(f"color:{cor};background:transparent;border:none;font-weight:bold;")

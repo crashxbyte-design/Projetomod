@@ -1,4 +1,4 @@
-"""panel_config.py - Configurações globais do sistema."""
+"""panel_config.py — Configurações globais refinadas."""
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QLineEdit, QPushButton
@@ -6,116 +6,138 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 import database as db
-from styles import VERMELHO, VERMELHO_ESC, BRANCO, CINZA_BG, CINZA_BORDA, CINZA_SUAVE, PRETO_TITULO, VERDE, LARANJA
+from styles import VERMELHO, VERMELHO_ESC, BRANCO, PRETO_TITULO, VERDE, LARANJA
+from widgets import shadow
 
+CSS_F = "background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:8px 12px;color:#0F172A;font-family:'Segoe UI';font-size:10pt;"
 
-def _field(placeholder=""):
-    w = QLineEdit()
-    w.setPlaceholderText(placeholder)
-    w.setFixedHeight(36)
-    w.setFont(QFont("Segoe UI", 10))
-    w.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 12px;}}QLineEdit:focus{{border-color:{VERMELHO};}}")
+def _lbl(t, bold=False, size=9, color="#475569"):
+    l = QLabel(t)
+    l.setFont(QFont("Segoe UI", size, QFont.Weight.Bold if bold else QFont.Weight.Medium))
+    l.setStyleSheet(f"color:{color};background:transparent;border:none;")
+    return l
+
+def _fld(ph=""):
+    w = QLineEdit(); w.setPlaceholderText(ph); w.setFixedHeight(40)
+    w.setStyleSheet(f"QLineEdit{{{CSS_F}}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);}}")
     return w
 
+def _sec(title, subtitle=""):
+    f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+    ly = QVBoxLayout(f); ly.setContentsMargins(0,0,0,0); ly.setSpacing(4)
+    hly = QHBoxLayout(); hly.setContentsMargins(0,0,0,0); hly.setSpacing(10)
+    bar = QFrame(); bar.setFixedSize(4, 16)
+    bar.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
+    hly.addWidget(bar)
+    t = _lbl(title.upper(), bold=True, size=8, color="#334155")
+    t.setStyleSheet(f"color:#334155;letter-spacing:1px;background:transparent;border:none;font-weight:bold;")
+    hly.addWidget(t); hly.addStretch(); ly.addLayout(hly)
+    if subtitle: ly.addWidget(_lbl(subtitle, size=9, color="#64748B"))
+    sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
+    sep.setStyleSheet("background:#E2E8F0;border:none;"); sep.setFixedHeight(1)
+    ly.addSpacing(6); ly.addWidget(sep)
+    return f
 
-def _row(label, widget):
-    ly = QHBoxLayout(); ly.setSpacing(12)
-    lbl = QLabel(label)
-    lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-    lbl.setFixedWidth(180)
-    lbl.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-    ly.addWidget(lbl); ly.addWidget(widget, 1)
-    w = QWidget(); w.setLayout(ly); w.setStyleSheet("background:transparent;border:none;")
-    return w
+def _row_field(label, widget):
+    f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+    ly = QVBoxLayout(f); ly.setContentsMargins(0,0,0,0); ly.setSpacing(6)
+    l = _lbl(label, size=9, color="#334155")
+    l.setFont(QFont("Segoe UI", 9, QFont.Weight.Medium))
+    ly.addWidget(l); ly.addWidget(widget)
+    return f
 
+def _h2(w1, w2):
+    f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+    ly = QHBoxLayout(f); ly.setContentsMargins(0,0,0,0); ly.setSpacing(16)
+    ly.addWidget(w1, 1); ly.addWidget(w2, 1)
+    return f
 
 class ConfigPanel(QWidget):
     def __init__(self, data, parent=None):
-        super().__init__(parent)
-        self.data = data
-        self._build_ui()
-        self._load()
+        super().__init__(parent); self.data = data
+        self._build_ui(); self._load()
 
     def _build_ui(self):
-        root = QVBoxLayout(self); root.setContentsMargins(0, 0, 0, 0)
+        root = QVBoxLayout(self); root.setContentsMargins(0,0,0,0)
         scroll = QScrollArea(); scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
         root.addWidget(scroll)
-        container = QWidget(); container.setStyleSheet(f"background:{CINZA_BG};")
-        scroll.setWidget(container)
-        ly = QVBoxLayout(container); ly.setContentsMargins(28, 24, 28, 28); ly.setSpacing(20)
+        ctr = QWidget(); ctr.setStyleSheet("background:transparent;")
+        scroll.setWidget(ctr)
+        ly = QVBoxLayout(ctr); ly.setContentsMargins(32,32,32,32); ly.setSpacing(24)
 
-        # Título
-        t = QLabel("CONFIGURAÇÕES DO SISTEMA")
-        t.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        t.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-        ly.addWidget(t)
-        s = QLabel("Defina as informações globais exibidas no book de indicadores.")
-        s.setFont(QFont("Segoe UI", 9))
-        s.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-        ly.addWidget(s)
+        # Page header
+        ph = QFrame()
+        ph.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        ph.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        ph_ly = QHBoxLayout(ph); ph_ly.setContentsMargins(32,24,32,24)
+        vly = QVBoxLayout(); vly.setSpacing(6)
+        vly.addWidget(_lbl("Configurações do Sistema", bold=True, size=16, color="#0F172A"))
+        vly.addWidget(_lbl("Defina os dados institucionais que serão exibidos nos relatórios e books gerados.", size=10, color="#64748B"))
+        ph_ly.addLayout(vly, 1)
+        ly.addWidget(ph)
 
-        # Card principal
-        card = QFrame()
-        card.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        card_ly = QVBoxLayout(card); card_ly.setContentsMargins(28, 24, 28, 28); card_ly.setSpacing(16)
+        # Center container
+        center = QWidget()
+        center.setMaximumWidth(840)
+        c_ly = QVBoxLayout(center); c_ly.setContentsMargins(0,0,0,0); c_ly.setSpacing(24)
+        
+        # Card 1 — Identificação
+        card1 = QFrame()
+        card1.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        card1.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        c1 = QVBoxLayout(card1); c1.setContentsMargins(32,32,32,32); c1.setSpacing(20)
+        c1.addWidget(_sec("Identificação Institucional", "Dados que aparecem na capa e cabeçalhos dos documentos exportados"))
+        
+        self.f_book = _fld("Ex: Indicadores de Segurança Patrimonial")
+        self.f_inst = _fld("Ex: Hospital Universitário Evangélico Mackenzie")
+        self.f_resp = _fld("Ex: Gerência de Segurança Patrimonial")
+        c1.addWidget(_row_field("Nome do Book / Relatório", self.f_book))
+        c1.addWidget(_row_field("Nome da Instituição", self.f_inst))
+        c1.addWidget(_row_field("Departamento / Responsável", self.f_resp))
+        c_ly.addWidget(card1)
+        
+        # Card 2 — Período
+        card2 = QFrame()
+        card2.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        card2.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        c2 = QVBoxLayout(card2); c2.setContentsMargins(32,32,32,32); c2.setSpacing(20)
+        c2.addWidget(_sec("Período e Atualização", "Dados de referência temporal do relatório global"))
+        
+        self.f_per = _fld("Ex: Janeiro a Fevereiro/2026")
+        self.f_dat = _fld("Ex: 05/02/2026")
+        c2.addWidget(_h2(_row_field("Período de Referência", self.f_per),
+                         _row_field("Data de Atualização", self.f_dat)))
+        c_ly.addWidget(card2)
 
-        sec = QLabel("IDENTIFICAÇÃO")
-        sec.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        sec.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;letter-spacing:2px;")
-        card_ly.addWidget(sec)
-
-        self.f_book        = _field("Ex: Indicadores de Segurança Patrimonial")
-        self.f_instituicao = _field("Ex: Hospital Universitário Evangélico Mackenzie")
-        self.f_responsavel = _field("Ex: Segurança Patrimonial")
-        card_ly.addWidget(_row("Nome do Book",    self.f_book))
-        card_ly.addWidget(_row("Instituição",     self.f_instituicao))
-        card_ly.addWidget(_row("Responsável",     self.f_responsavel))
-
-        sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet(f"background:{CINZA_BORDA};border:none;"); sep.setFixedHeight(1)
-        card_ly.addWidget(sep)
-
-        sec2 = QLabel("PERÍODO E DATA")
-        sec2.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        sec2.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;letter-spacing:2px;")
-        card_ly.addWidget(sec2)
-
-        self.f_periodo     = _field("Ex: Jan a Fev/2026")
-        self.f_atualizacao = _field("Ex: 05/02/2026")
-        card_ly.addWidget(_row("Período Atual",       self.f_periodo))
-        card_ly.addWidget(_row("Data de Atualização", self.f_atualizacao))
-
-        # Botões
-        btn_ly = QHBoxLayout(); btn_ly.setSpacing(10)
-        self.lbl_status = QLabel("")
-        self.lbl_status.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        self.lbl_status.setStyleSheet("background:transparent;border:none;")
-        btn_ly.addWidget(self.lbl_status); btn_ly.addStretch()
-        btn_save = QPushButton("💾  Salvar Configurações")
-        btn_save.setFixedHeight(36)
-        btn_save.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:{BRANCO};border:none;border-radius:5px;padding:0 24px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:{VERMELHO};}}")
-        btn_ly.addWidget(btn_save)
-        card_ly.addLayout(btn_ly)
-
-        ly.addWidget(card)
+        # Actions
+        act = QHBoxLayout(); act.setSpacing(12)
+        self.lbl_st = _lbl("", bold=True, size=10, color=VERDE)
+        act.addWidget(self.lbl_st); act.addStretch()
+        btn = QPushButton("Salvar Configurações")
+        btn.setFixedHeight(42); btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 32px;font-family:'Segoe UI';font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:{VERMELHO};}}")
+        act.addWidget(btn)
+        c_ly.addLayout(act)
+        
+        wrapper = QHBoxLayout(); wrapper.addWidget(center); wrapper.addStretch()
+        ly.addLayout(wrapper)
         ly.addStretch()
-
-        btn_save.clicked.connect(self._save)
+        btn.clicked.connect(self._save)
 
     def _load(self):
         cfg = db.get_all_config()
         self.f_book.setText(cfg.get("nome_book", ""))
-        self.f_instituicao.setText(cfg.get("nome_instituicao", ""))
-        self.f_responsavel.setText(cfg.get("responsavel", ""))
-        self.f_periodo.setText(cfg.get("periodo_atual", ""))
-        self.f_atualizacao.setText(cfg.get("data_atualizacao", ""))
+        self.f_inst.setText(cfg.get("nome_instituicao", ""))
+        self.f_resp.setText(cfg.get("responsavel", ""))
+        self.f_per.setText(cfg.get("periodo_atual", ""))
+        self.f_dat.setText(cfg.get("data_atualizacao", ""))
 
     def _save(self):
-        db.set_config("nome_book",        self.f_book.text().strip())
-        db.set_config("nome_instituicao", self.f_instituicao.text().strip())
-        db.set_config("responsavel",      self.f_responsavel.text().strip())
-        db.set_config("periodo_atual",    self.f_periodo.text().strip())
-        db.set_config("data_atualizacao", self.f_atualizacao.text().strip())
-        self.lbl_status.setText("✅ Configurações salvas!")
-        self.lbl_status.setStyleSheet(f"color:{VERDE};background:transparent;border:none;")
+        db.set_config("nome_book", self.f_book.text().strip())
+        db.set_config("nome_instituicao", self.f_inst.text().strip())
+        db.set_config("responsavel", self.f_resp.text().strip())
+        db.set_config("periodo_atual", self.f_per.text().strip())
+        db.set_config("data_atualizacao", self.f_dat.text().strip())
+        self.lbl_st.setText("✅ Configurações salvas!")
+        self.lbl_st.setStyleSheet(f"color:{VERDE};background:transparent;border:none;font-weight:bold;")

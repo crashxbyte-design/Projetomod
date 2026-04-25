@@ -63,14 +63,21 @@ class BaseDadosPanel(QWidget):
 
     # ── UI BUILDER ────────────────────────────────────────────────────────
     def _build_ui(self):
+        self.setStyleSheet("background: #F1F5F9;")
         root = QVBoxLayout(self); root.setContentsMargins(0,0,0,0); root.setSpacing(0)
         
         self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
         self.tabs.setStyleSheet(f"""
-            QTabWidget::pane {{ border: none; background: transparent; border-top: 1px solid #E0E0E0; }}
-            QTabBar::tab {{ background: transparent; border: none; border-bottom: 2px solid transparent; padding: 12px 24px; color: #757575; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; margin-right: 4px; }}
-            QTabBar::tab:hover {{ color: #424242; }}
-            QTabBar::tab:selected {{ color: {VERMELHO_ESC}; border-bottom: 2px solid {VERMELHO_ESC}; }}
+            QTabWidget::pane {{ border: none; background: transparent; border-top: 1px solid #E2E8F0; }}
+            QTabBar {{ background: #FFFFFF; }}
+            QTabBar::tab {{ 
+                background: transparent; border: none; padding: 16px 28px; 
+                color: #64748B; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; 
+                border-bottom: 3px solid transparent; 
+            }}
+            QTabBar::tab:hover {{ color: #0F172A; background: #F8FAFC; }}
+            QTabBar::tab:selected {{ color: {VERMELHO_ESC}; border-bottom: 3px solid {VERMELHO_ESC}; }}
         """)
         root.addWidget(self.tabs)
 
@@ -104,107 +111,189 @@ class BaseDadosPanel(QWidget):
                 self.tab_analise._populate_selector()
 
     def _build_tab_indicadores(self):
-        ly = QVBoxLayout(self.tab_ind); ly.setContentsMargins(20,20,20,20); ly.setSpacing(16)
-        
-        # Toolbar
-        tb = QHBoxLayout()
-        self.btn_new_ind = _btn("＋  Novo Indicador", primary=True)
-        tb.addWidget(self.btn_new_ind)
-        tb.addStretch()
-        self.lbl_status_ind = QLabel("")
-        self.lbl_status_ind.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        tb.addWidget(self.lbl_status_ind)
-        ly.addLayout(tb)
+        self.tab_ind.setStyleSheet("background:transparent;")
+        ly = QVBoxLayout(self.tab_ind); ly.setContentsMargins(0,0,0,0); ly.setSpacing(0)
+
+        # ── Cabeçalho Herói ──────────────────────────────────────────────────
+        header = QFrame()
+        header.setStyleSheet("background:#FFFFFF; border-bottom:1px solid #E2E8F0;")
+        h_ly = QHBoxLayout(header); h_ly.setContentsMargins(40,30,40,30); h_ly.setSpacing(20)
+
+        ttl_col = QVBoxLayout(); ttl_col.setSpacing(6)
+        t1 = QLabel("Catálogo de Indicadores Principais")
+        t1.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        t1.setStyleSheet("color:#0F172A; background:transparent; border:none;")
+        t2 = QLabel("Gerencie a estrutura central do seu book de performance.")
+        t2.setFont(QFont("Segoe UI", 11))
+        t2.setStyleSheet("color:#64748B; background:transparent; border:none;")
+        ttl_col.addWidget(t1); ttl_col.addWidget(t2)
+        h_ly.addLayout(ttl_col, 1)
+
+        self.btn_new_ind = QPushButton("＋  Novo Indicador")
+        self.btn_new_ind.setFixedHeight(42); self.btn_new_ind.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_new_ind.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.btn_new_ind.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 24px;}}QPushButton:hover{{background:{VERMELHO};}}")
+        h_ly.addWidget(self.btn_new_ind)
+        ly.addWidget(header)
+
+        # ── Área de Conteúdo (Splitter) ──────────────────────────────────
+        content_wrap = QWidget(); content_wrap.setStyleSheet("background:transparent;")
+        cw_ly = QVBoxLayout(content_wrap); cw_ly.setContentsMargins(32,32,32,32); cw_ly.setSpacing(0)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setStyleSheet("QSplitter::handle{background:transparent;}")
-        
+        splitter.setStyleSheet("QSplitter::handle{background:transparent;width:24px;}")
+        splitter.setHandleWidth(24)
+
         # Tabela
+        tbl_frame = QFrame()
+        tbl_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E5E7EB;border-radius:8px;}}")
+        tbl_frame.setGraphicsEffect(shadow(8,(0,2),(0,0,0,8)))
+        tf_ly = QVBoxLayout(tbl_frame); tf_ly.setContentsMargins(0,0,0,0)
+
         self.tbl_ind = QTableWidget(0, 6)
-        self.tbl_ind.setHorizontalHeaderLabels(["Código", "Indicador", "Tipo", "Periodicidade", "Meta", "Ativo"])
+        self.tbl_ind.setHorizontalHeaderLabels(["Código","Nome do Indicador","Tipo","Periodicidade","Meta","Ativo"])
         self.tbl_ind.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tbl_ind.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.tbl_ind.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tbl_ind.verticalHeader().setVisible(False)
         self.tbl_ind.setAlternatingRowColors(True)
+        self.tbl_ind.setShowGrid(False)
         self.tbl_ind.setStyleSheet(f"""
-            QTableWidget {{ border: 1px solid #E1E4E8; border-radius: 6px; font-size: 9pt; background: {BRANCO}; gridline-color: transparent; }}
-            QTableWidget::item {{ padding: 6px 12px; color: #24292F; border-bottom: 1px solid #EAECEF; }}
-            QTableWidget::item:selected {{ background: #F0F7FF; color: #0366D6; }}
-            QHeaderView::section {{ background: #F6F8FA; color: #57606A; font-weight: bold; font-size: 9pt; padding: 10px; border: none; border-bottom: 1px solid #D0D7DE; border-right: 1px solid #E1E4E8; }}
-            QTableWidget::item:alternate {{ background: #F8F9FA; }}
+            QTableWidget{{ border:none; font-size:10pt; background:{BRANCO}; border-radius:10px; }}
+            QTableWidget::item{{ padding:12px 16px; color:#1E293B; border-bottom:1px solid #F1F5F9; }}
+            QTableWidget::item:selected{{ background:#FFF1F2; color:{VERMELHO_ESC}; font-weight:bold; }}
+            QHeaderView::section{{ background:#F8FAFC; color:#475569; font-weight:bold; font-size:9pt;
+                padding:14px 16px; border:none; border-bottom:2px solid #E2E8F0; text-transform:uppercase; letter-spacing:0.5px; }}
+            QTableWidget::item:alternate{{ background:#FAFAFA; }}
         """)
         hdr = self.tbl_ind.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        for i in range(2, 6): hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
-        splitter.addWidget(self.tbl_ind)
+        for i in range(2,6): hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setStretchLastSection(False)
+        self.tbl_ind.verticalHeader().setDefaultSectionSize(44)
+        tf_ly.addWidget(self.tbl_ind)
 
-        # Painel Form
-        form_frame = QFrame()
-        form_frame.setMinimumWidth(320); form_frame.setMaximumWidth(400)
-        form_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E1E4E8;border-radius:8px;}}")
-        form_frame.setGraphicsEffect(shadow(12, (0,4), (0,0,0,15)))
-        form_ly = QVBoxLayout(form_frame); form_ly.setContentsMargins(20,20,20,20); form_ly.setSpacing(12)
+        # Status bar below table
+        self.lbl_status_ind = QLabel("")
+        self.lbl_status_ind.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        self.lbl_status_ind.setContentsMargins(16,6,16,6)
+        self.lbl_status_ind.setStyleSheet("background:transparent;border:none;")
+        tf_ly.addWidget(self.lbl_status_ind)
+        splitter.addWidget(tbl_frame)
 
-        def _edit():
-            w = QLineEdit()
-            w.setFixedHeight(34)
-            w.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}QLineEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
-            return w
-        def _combo():
-            w = QComboBox()
-            w.setFixedHeight(34)
-            w.setStyleSheet(f"QComboBox{{background:#F6F8FA;border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}QComboBox:focus{{border:1px solid {VERMELHO_ESC};}} QComboBox::drop-down{{border:none;}}")
-            return w
+        # ── Painel lateral ────────────────────────────────────────────────
+        form_scroll = QScrollArea(); form_scroll.setWidgetResizable(True)
+        form_scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
+        form_scroll.setMinimumWidth(330); form_scroll.setMaximumWidth(420)
 
-        self.f_ind_cod = _edit()
-        self.f_ind_nome = _edit()
-        self.f_ind_tipo = _combo(); self.f_ind_tipo.addItems(["Operacional", "Estratégico", "Tático"])
-        self.f_ind_per = _combo(); self.f_ind_per.addItems(["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"])
-        self.f_ind_uni = _edit()
-        self.f_ind_meta_txt = _edit()
-        self.f_ind_meta_num = _edit()
+        form_w = QWidget(); form_w.setStyleSheet("background:transparent;")
+        form_ly = QVBoxLayout(form_w); form_ly.setContentsMargins(0,0,0,0); form_ly.setSpacing(16)
+
+        # ── Seção helper ─────────────────────────────────────
+        def _section(title):
+            f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+            hl = QHBoxLayout(f); hl.setContentsMargins(0,12,0,6); hl.setSpacing(10)
+            bar = QFrame(); bar.setFixedSize(4,16)
+            bar.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
+            lbl = QLabel(title.upper()); lbl.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
+            lbl.setStyleSheet("color:#475569;letter-spacing:1px;background:transparent;border:none;")
+            hl.addWidget(bar); hl.addWidget(lbl); hl.addStretch()
+            return f
+
+        def _fld(ph=""):
+            w = QLineEdit(); w.setPlaceholderText(ph); w.setFixedHeight(40)
+            w.setStyleSheet(f"QLineEdit{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);}}"); return w
+        def _cbo(items):
+            w = QComboBox(); w.addItems(items); w.setFixedHeight(40)
+            w.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}"); return w
+        def _row(lbl, w):
+            f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+            v = QVBoxLayout(f); v.setContentsMargins(0,0,0,0); v.setSpacing(6)
+            l = QLabel(lbl); l.setFont(QFont("Segoe UI",9, QFont.Weight.Medium)); l.setStyleSheet("color:#334155;background:transparent;border:none;")
+            v.addWidget(l); v.addWidget(w); return f
+
+        # Card form
+        card = QFrame()
+        card.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        card.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        card_ly = QVBoxLayout(card); card_ly.setContentsMargins(28,28,28,28); card_ly.setSpacing(14)
+
+        # Identificação
+        card_ly.addWidget(_section("Identificação"))
+        code_row = QHBoxLayout(); code_row.setSpacing(16)
+        self.f_ind_cod = _fld("Ex: SP.IND.012"); self.f_ind_cod.setMaximumWidth(160)
+        self.f_ind_nome = _fld("Nome completo do indicador")
+        code_row.addWidget(_row("Código", self.f_ind_cod))
+        code_row.addWidget(_row("Nome do Indicador", self.f_ind_nome), 1)
+        card_ly.addLayout(code_row)
+
+        sep1 = QFrame(); sep1.setFrameShape(QFrame.Shape.HLine); sep1.setStyleSheet("background:#E2E8F0;")
+        card_ly.addWidget(sep1)
+
+        # Classificação
+        card_ly.addWidget(_section("Classificação e Medida"))
+        cls_row = QHBoxLayout(); cls_row.setSpacing(16)
+        self.f_ind_tipo = _cbo(["Operacional","Estratégico","Tático"])
+        self.f_ind_per  = _cbo(["Mensal","Bimestral","Trimestral","Semestral","Anual"])
+        self.f_ind_uni  = _fld("Ex: %, unidades, óbitos")
+        cls_row.addWidget(_row("Tipo", self.f_ind_tipo))
+        cls_row.addWidget(_row("Periodicidade", self.f_ind_per))
+        card_ly.addLayout(cls_row)
+        card_ly.addWidget(_row("Unidade de Medida", self.f_ind_uni))
+
+        sep2 = QFrame(); sep2.setFrameShape(QFrame.Shape.HLine); sep2.setStyleSheet("background:#E2E8F0;")
+        card_ly.addWidget(sep2)
+
+        # Meta
+        card_ly.addWidget(_section("Meta e Comportamento"))
+        meta_row = QHBoxLayout(); meta_row.setSpacing(16)
+        self.f_ind_meta_txt = _fld("Ex: ≤ 3")
+        self.f_ind_meta_num = _fld("3")
+        meta_row.addWidget(_row("Meta (texto)", self.f_ind_meta_txt), 2)
+        meta_row.addWidget(_row("Meta (número numérico)", self.f_ind_meta_num), 1)
+        card_ly.addLayout(meta_row)
+
+        chk_row = QHBoxLayout(); chk_row.setSpacing(24)
         self.f_ind_menor = QCheckBox("Menor valor é melhor")
-        self.f_ind_menor.setStyleSheet("color:#24292F;")
-        self.f_ind_obs = QTextEdit(); self.f_ind_obs.setMaximumHeight(70)
-        self.f_ind_obs.setStyleSheet(f"QTextEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:6px;color:#24292F;}}QTextEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
-        self.f_ind_ativo = QCheckBox("Ativo")
-        self.f_ind_ativo.setStyleSheet("color:#24292F;font-weight:bold;")
-
-        form_ly.addWidget(_section_lbl("DADOS PRINCIPAIS"))
-        form_ly.addWidget(_FieldRow("Código do Indicador", self.f_ind_cod))
-        form_ly.addWidget(_FieldRow("Nome do Indicador", self.f_ind_nome))
-        form_ly.addWidget(_FieldRow("Tipo", self.f_ind_tipo))
-        form_ly.addWidget(_FieldRow("Periodicidade", self.f_ind_per))
-        form_ly.addWidget(_FieldRow("Unidade (ex: %, unidades)", self.f_ind_uni))
-        
-        form_ly.addSpacing(10)
-        form_ly.addWidget(_section_lbl("META E COMPORTAMENTO"))
-        form_ly.addWidget(_FieldRow("Meta Texto (ex: ≤ 3)", self.f_ind_meta_txt))
-        form_ly.addWidget(_FieldRow("Meta Número (ex: 3)", self.f_ind_meta_num))
-        form_ly.addWidget(self.f_ind_menor)
+        self.f_ind_ativo = QCheckBox("Indicador Ativo no Sistema")
         self.f_ind_ativo.setChecked(True)
-        form_ly.addWidget(self.f_ind_ativo)
-        
-        form_ly.addSpacing(10)
-        form_ly.addWidget(_FieldRow("Observações", self.f_ind_obs))
-        
+        for c in [self.f_ind_menor, self.f_ind_ativo]:
+            c.setStyleSheet(f"QCheckBox{{color:#0F172A;font-family:'Segoe UI';font-size:10pt;font-weight:500;background:transparent;border:none;}} QCheckBox::indicator{{width:18px;height:18px;border:1px solid #CBD5E1;border-radius:4px;background:#F8FAFC;}} QCheckBox::indicator:checked{{background:{VERMELHO_ESC};border-color:{VERMELHO_ESC};}}")
+        chk_row.addWidget(self.f_ind_menor); chk_row.addWidget(self.f_ind_ativo); chk_row.addStretch()
+        card_ly.addSpacing(6)
+        card_ly.addLayout(chk_row)
+
+        sep3 = QFrame(); sep3.setFrameShape(QFrame.Shape.HLine); sep3.setStyleSheet("background:#E2E8F0;")
+        card_ly.addWidget(sep3)
+
+        # Observações
+        card_ly.addWidget(_section("Observações Adicionais"))
+        self.f_ind_obs = QTextEdit(); self.f_ind_obs.setMaximumHeight(80)
+        self.f_ind_obs.setStyleSheet(f"QTextEdit{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:10px;color:#0F172A;font-family:'Segoe UI';font-size:10pt;}}QTextEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}")
+        card_ly.addWidget(self.f_ind_obs)
+
+        form_ly.addWidget(card)
+
+        # Botões
+        btn_row = QHBoxLayout(); btn_row.setSpacing(12)
+        self.btn_ind_del = QPushButton("Excluir Indicador")
+        self.btn_ind_del.setFixedHeight(42); self.btn_ind_del.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ind_del.setStyleSheet(f"QPushButton{{background:transparent;color:{VERMELHO_ESC};border:1px solid {VERMELHO_ESC};border-radius:8px;padding:0 20px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:#FFF1F2;}}")
+        self.btn_ind_save = QPushButton("Salvar Alterações")
+        self.btn_ind_save.setFixedHeight(42); self.btn_ind_save.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ind_save.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 32px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:{VERMELHO};}}")
+        btn_row.addWidget(self.btn_ind_del); btn_row.addStretch(); btn_row.addWidget(self.btn_ind_save)
+        form_ly.addSpacing(4)
+        form_ly.addLayout(btn_row)
         form_ly.addStretch()
 
-        btn_row = QHBoxLayout()
-        self.btn_ind_save = _btn("Salvar", primary=True)
-        self.btn_ind_del = _btn("Excluir", danger=True)
-        btn_row.addWidget(self.btn_ind_del)
-        btn_row.addStretch()
-        btn_row.addWidget(self.btn_ind_save)
-        form_ly.addLayout(btn_row)
+        form_scroll.setWidget(form_w)
+        splitter.addWidget(form_scroll)
+        splitter.setSizes([750, 450])
+        cw_ly.addWidget(splitter, 1)
+        ly.addWidget(content_wrap, 1)
 
-        splitter.addWidget(form_frame)
-        splitter.setSizes([700, 350])
-        ly.addWidget(splitter, 1)
-
-        # Signals
         self.tbl_ind.selectionModel().selectionChanged.connect(self._on_ind_select)
         self.btn_new_ind.clicked.connect(self._new_ind)
         self.btn_ind_save.clicked.connect(self._save_ind)
@@ -212,88 +301,187 @@ class BaseDadosPanel(QWidget):
 
 
     def _build_tab_subindicadores(self):
-        ly = QVBoxLayout(self.tab_sub); ly.setContentsMargins(20,20,20,20); ly.setSpacing(16)
-        
-        # Toolbar
-        tb = QHBoxLayout()
-        tb.addWidget(QLabel("Filtrar por Indicador:"))
-        self.cb_filter_ind = QComboBox()
-        self.cb_filter_ind.setMinimumWidth(300)
-        self.cb_filter_ind.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 8px;}}")
-        tb.addWidget(self.cb_filter_ind)
-        tb.addSpacing(20)
-        self.btn_new_sub = _btn("＋  Novo Subindicador", primary=True)
-        tb.addWidget(self.btn_new_sub)
-        tb.addStretch()
-        self.lbl_status_sub = QLabel("")
-        self.lbl_status_sub.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        tb.addWidget(self.lbl_status_sub)
-        ly.addLayout(tb)
+        self.tab_sub.setStyleSheet("background:transparent;")
+        ly = QVBoxLayout(self.tab_sub); ly.setContentsMargins(0,0,0,0); ly.setSpacing(0)
+
+        # ── Cabeçalho Herói ──────────────────────────────────────
+        header = QFrame()
+        header.setStyleSheet("background:#FFFFFF; border-bottom:1px solid #E2E8F0;")
+        h_ly = QHBoxLayout(header); h_ly.setContentsMargins(40,30,40,30); h_ly.setSpacing(20)
+
+        ttl_col = QVBoxLayout(); ttl_col.setSpacing(6)
+        t1 = QLabel("Catálogo de Subindicadores")
+        t1.setFont(QFont("Segoe UI",18,QFont.Weight.Bold))
+        t1.setStyleSheet("color:#0F172A; background:transparent; border:none;")
+        t2 = QLabel("Configure os indicadores granulares e crie o detalhamento de cada meta.")
+        t2.setFont(QFont("Segoe UI",11))
+        t2.setStyleSheet("color:#64748B; background:transparent; border:none;")
+        ttl_col.addWidget(t1); ttl_col.addWidget(t2)
+        h_ly.addLayout(ttl_col, 1)
+
+        vsep = QFrame(); vsep.setFrameShape(QFrame.Shape.VLine)
+        vsep.setStyleSheet("background:#E2E8F0; border:none;"); vsep.setFixedWidth(1)
+        h_ly.addWidget(vsep)
+
+        fil_col = QVBoxLayout(); fil_col.setSpacing(6)
+        fil_lbl = QLabel("Filtrar Tabela por Indicador Pai:")
+        fil_lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold)); fil_lbl.setStyleSheet("color:#475569; background:transparent; border:none;")
+        self.cb_filter_ind = QComboBox(); self.cb_filter_ind.setFixedHeight(42); self.cb_filter_ind.setMinimumWidth(340)
+        self.cb_filter_ind.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}")
+        fil_col.addWidget(fil_lbl); fil_col.addWidget(self.cb_filter_ind)
+        h_ly.addLayout(fil_col)
+
+        vsep2 = QFrame(); vsep2.setFrameShape(QFrame.Shape.VLine)
+        vsep2.setStyleSheet("background:#E2E8F0; border:none;"); vsep2.setFixedWidth(1)
+        h_ly.addWidget(vsep2)
+
+        self.btn_new_sub = QPushButton("＋  Novo Subindicador")
+        self.btn_new_sub.setFixedHeight(42); self.btn_new_sub.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_new_sub.setFont(QFont("Segoe UI",10,QFont.Weight.Bold))
+        self.btn_new_sub.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 24px;}}QPushButton:hover{{background:{VERMELHO};}}")
+        h_ly.addWidget(self.btn_new_sub)
+        ly.addWidget(header)
+
+        # ── Área de Conteúdo (Splitter) ──────────────────────────────────
+        content_wrap = QWidget(); content_wrap.setStyleSheet("background:transparent;")
+        cw_ly = QVBoxLayout(content_wrap); cw_ly.setContentsMargins(32,32,32,32); cw_ly.setSpacing(0)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setStyleSheet("QSplitter::handle{background:transparent;}")
-        
+        splitter.setStyleSheet("QSplitter::handle{background:transparent;width:24px;}")
+        splitter.setHandleWidth(24)
+
         # Tabela
+        tbl_frame = QFrame()
+        tbl_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        tbl_frame.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        tf_ly = QVBoxLayout(tbl_frame); tf_ly.setContentsMargins(0,0,0,0)
+
         self.tbl_sub = QTableWidget(0, 5)
-        self.tbl_sub.setHorizontalHeaderLabels(["ID", "Indicador Pai", "Nome do Subindicador", "Ordem", "Ativo"])
+        self.tbl_sub.setHorizontalHeaderLabels(["ID","Indicador Pai","Nome do Subindicador","Ordem","Ativo"])
         self.tbl_sub.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tbl_sub.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.tbl_sub.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tbl_sub.verticalHeader().setVisible(False)
         self.tbl_sub.setAlternatingRowColors(True)
-        self.tbl_sub.setStyleSheet(self.tbl_ind.styleSheet())
-        
+        self.tbl_sub.setShowGrid(False)
+        self.tbl_sub.setStyleSheet(f"""
+            QTableWidget{{ border:none; font-size:10pt; background:{BRANCO}; border-radius:10px; }}
+            QTableWidget::item{{ padding:12px 16px; color:#1E293B; border-bottom:1px solid #F1F5F9; }}
+            QTableWidget::item:selected{{ background:#FFF1F2; color:{VERMELHO_ESC}; font-weight:bold; }}
+            QHeaderView::section{{ background:#F8FAFC; color:#475569; font-weight:bold; font-size:9pt;
+                padding:14px 16px; border:none; border-bottom:2px solid #E2E8F0; text-transform:uppercase; letter-spacing:0.5px; }}
+            QTableWidget::item:alternate{{ background:#FAFAFA; }}
+        """)
         hdr = self.tbl_sub.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        splitter.addWidget(self.tbl_sub)
+        self.tbl_sub.verticalHeader().setDefaultSectionSize(44)
+        tf_ly.addWidget(self.tbl_sub)
 
-        # Painel Form
-        form_frame = QFrame()
-        form_frame.setMinimumWidth(320); form_frame.setMaximumWidth(400)
-        form_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E1E4E8;border-radius:8px;}}")
-        form_frame.setGraphicsEffect(shadow(12, (0,4), (0,0,0,15)))
-        form_ly = QVBoxLayout(form_frame); form_ly.setContentsMargins(20,20,20,20); form_ly.setSpacing(12)
+        self.lbl_status_sub = QLabel("")
+        self.lbl_status_sub.setFont(QFont("Segoe UI",9,QFont.Weight.Bold))
+        self.lbl_status_sub.setContentsMargins(16,6,16,6)
+        self.lbl_status_sub.setStyleSheet("background:transparent;border:none;")
+        tf_ly.addWidget(self.lbl_status_sub)
+        splitter.addWidget(tbl_frame)
 
-        self.f_sub_id = QLineEdit(); self.f_sub_id.setReadOnly(True); self.f_sub_id.setFixedHeight(34)
-        self.f_sub_id.setStyleSheet(f"QLineEdit{{background:#F3F4F6;border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#6E7781;}}")
-        self.f_sub_pai = QComboBox(); self.f_sub_pai.setFixedHeight(34)
-        self.f_sub_pai.setStyleSheet(f"QComboBox{{background:#F6F8FA;border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}")
-        self.f_sub_nome = QLineEdit(); self.f_sub_nome.setFixedHeight(34)
-        self.f_sub_nome.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:4px 10px;color:#24292F;}}QLineEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
-        self.f_sub_ordem = QLineEdit(); self.f_sub_ordem.setFixedHeight(34)
-        self.f_sub_ordem.setStyleSheet(self.f_sub_nome.styleSheet())
-        self.f_sub_obs = QTextEdit(); self.f_sub_obs.setMaximumHeight(70)
-        self.f_sub_obs.setStyleSheet(f"QTextEdit{{background:{BRANCO};border:1px solid #D0D7DE;border-radius:6px;padding:6px;color:#24292F;}}QTextEdit:focus{{border:1px solid {VERMELHO_ESC};}}")
-        self.f_sub_ativo = QCheckBox("Ativo")
-        self.f_sub_ativo.setStyleSheet("color:#24292F;font-weight:bold;")
+        # ── Painel lateral ───────────────────────────────────────
+        form_scroll = QScrollArea(); form_scroll.setWidgetResizable(True)
+        form_scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
+        form_scroll.setMinimumWidth(330); form_scroll.setMaximumWidth(420)
 
-        form_ly.addWidget(_section_lbl("DADOS DO SUBINDICADOR"))
-        form_ly.addWidget(_FieldRow("ID (Automático)", self.f_sub_id))
-        form_ly.addWidget(_FieldRow("Indicador Pai", self.f_sub_pai))
-        form_ly.addWidget(_FieldRow("Nome do Subindicador", self.f_sub_nome))
-        form_ly.addWidget(_FieldRow("Ordem (Numérico)", self.f_sub_ordem))
+        form_w = QWidget(); form_w.setStyleSheet("background:transparent;")
+        form_ly = QVBoxLayout(form_w); form_ly.setContentsMargins(0,0,0,0); form_ly.setSpacing(16)
+
+        def _section(title):
+            f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+            hl = QHBoxLayout(f); hl.setContentsMargins(0,12,0,6); hl.setSpacing(10)
+            bar = QFrame(); bar.setFixedSize(4,16)
+            bar.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
+            lbl = QLabel(title.upper()); lbl.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
+            lbl.setStyleSheet("color:#475569;letter-spacing:1px;background:transparent;border:none;")
+            hl.addWidget(bar); hl.addWidget(lbl); hl.addStretch()
+            return f
+
+        def _fld(ph="", ro=False):
+            w = QLineEdit(); w.setPlaceholderText(ph); w.setFixedHeight(40); w.setReadOnly(ro)
+            bg = "#F1F5F9" if ro else "#F8FAFC"
+            w.setStyleSheet(f"QLineEdit{{background:{bg};border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#{'64748B' if ro else '0F172A'};font-size:10pt;}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);}}"); return w
+        def _cbo():
+            w = QComboBox(); w.setFixedHeight(40)
+            w.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}"); return w
+        def _row(lbl, w):
+            f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+            v = QVBoxLayout(f); v.setContentsMargins(0,0,0,0); v.setSpacing(6)
+            l = QLabel(lbl); l.setFont(QFont("Segoe UI",9, QFont.Weight.Medium)); l.setStyleSheet("color:#334155;background:transparent;border:none;")
+            v.addWidget(l); v.addWidget(w); return f
+
+        # Badge indicador pai
+        self._sub_pai_badge = QFrame()
+        self._sub_pai_badge.setStyleSheet(f"QFrame{{background:#ECFDF5;border:1px solid #6EE7B7;border-radius:8px;}}")
+        badge_ly = QHBoxLayout(self._sub_pai_badge); badge_ly.setContentsMargins(16,12,16,12); badge_ly.setSpacing(12)
+        dot = QLabel("●"); dot.setStyleSheet(f"color:#059669;background:transparent;border:none;font-size:12pt;")
+        self._sub_pai_lbl = QLabel("Nenhum indicador pai selecionado")
+        self._sub_pai_lbl.setFont(QFont("Segoe UI",10,QFont.Weight.Bold))
+        self._sub_pai_lbl.setStyleSheet("color:#065F46;background:transparent;border:none;")
+        badge_ly.addWidget(dot); badge_ly.addWidget(self._sub_pai_lbl); badge_ly.addStretch()
+        form_ly.addWidget(self._sub_pai_badge)
+
+        # Card form
+        card = QFrame()
+        card.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        card.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        card_ly = QVBoxLayout(card); card_ly.setContentsMargins(28,28,28,28); card_ly.setSpacing(14)
+
+        card_ly.addWidget(_section("Identificação do Subindicador"))
+        self.f_sub_id  = _fld("Gerado automaticamente", ro=True)
+        self.f_sub_pai = _cbo()
+        nome_ord = QHBoxLayout(); nome_ord.setSpacing(16)
+        self.f_sub_nome  = _fld("Nome do subindicador")
+        self.f_sub_ordem = _fld("0"); self.f_sub_ordem.setMaximumWidth(100)
+        nome_ord.addWidget(_row("Nome do Subindicador", self.f_sub_nome), 1)
+        nome_ord.addWidget(_row("Ordem de Exibição", self.f_sub_ordem))
+        
+        card_ly.addWidget(_row("ID do Sistema", self.f_sub_id))
+        card_ly.addWidget(_row("Vincular ao Indicador Pai", self.f_sub_pai))
+        card_ly.addLayout(nome_ord)
+
+        sep1 = QFrame(); sep1.setFrameShape(QFrame.Shape.HLine); sep1.setStyleSheet("background:#E2E8F0;")
+        card_ly.addWidget(sep1)
+
+        card_ly.addWidget(_section("Status e Observações"))
+        self.f_sub_ativo = QCheckBox("Subindicador Ativo no Sistema")
         self.f_sub_ativo.setChecked(True)
-        form_ly.addWidget(self.f_sub_ativo)
-        form_ly.addWidget(_FieldRow("Observações", self.f_sub_obs))
+        self.f_sub_ativo.setStyleSheet(f"QCheckBox{{color:#0F172A;font-family:'Segoe UI';font-size:10pt;font-weight:500;background:transparent;border:none;}} QCheckBox::indicator{{width:18px;height:18px;border:1px solid #CBD5E1;border-radius:4px;background:#F8FAFC;}} QCheckBox::indicator:checked{{background:{VERMELHO_ESC};border-color:{VERMELHO_ESC};}}")
+        card_ly.addWidget(self.f_sub_ativo)
+        
+        self.f_sub_obs = QTextEdit(); self.f_sub_obs.setMaximumHeight(80)
+        self.f_sub_obs.setStyleSheet(f"QTextEdit{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:10px;color:#0F172A;font-family:'Segoe UI';font-size:10pt;}}QTextEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}")
+        card_ly.addWidget(_row("Observações Adicionais", self.f_sub_obs))
+        form_ly.addWidget(card)
+
+        # Botões
+        btn_row = QHBoxLayout(); btn_row.setSpacing(12)
+        self.btn_sub_del = QPushButton("Excluir Subindicador")
+        self.btn_sub_del.setFixedHeight(42); self.btn_sub_del.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_sub_del.setStyleSheet(f"QPushButton{{background:transparent;color:{VERMELHO_ESC};border:1px solid {VERMELHO_ESC};border-radius:8px;padding:0 20px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:#FFF1F2;}}")
+        self.btn_sub_save = QPushButton("Salvar Alterações")
+        self.btn_sub_save.setFixedHeight(42); self.btn_sub_save.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_sub_save.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 32px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:{VERMELHO};}}")
+        btn_row.addWidget(self.btn_sub_del); btn_row.addStretch(); btn_row.addWidget(self.btn_sub_save)
+        form_ly.addSpacing(4)
+        form_ly.addLayout(btn_row)
         form_ly.addStretch()
 
-        btn_row = QHBoxLayout()
-        self.btn_sub_save = _btn("Salvar", primary=True)
-        self.btn_sub_del = _btn("Excluir", danger=True)
-        btn_row.addWidget(self.btn_sub_del)
-        btn_row.addStretch()
-        btn_row.addWidget(self.btn_sub_save)
-        form_ly.addLayout(btn_row)
+        form_scroll.setWidget(form_w)
+        splitter.addWidget(form_scroll)
+        splitter.setSizes([750, 450])
+        cw_ly.addWidget(splitter, 1)
+        ly.addWidget(content_wrap, 1)
 
-        splitter.addWidget(form_frame)
-        splitter.setSizes([700, 350])
-        ly.addWidget(splitter, 1)
-
-        # Signals
         self.cb_filter_ind.currentIndexChanged.connect(self._load_subindicadores_table)
         self.tbl_sub.selectionModel().selectionChanged.connect(self._on_sub_select)
         self.btn_new_sub.clicked.connect(self._new_sub)
@@ -454,18 +642,22 @@ class BaseDadosPanel(QWidget):
         self.f_sub_id.setText(str(s["id"]))
         idx = self.f_sub_pai.findData(s["codigo_indicador"])
         if idx >= 0: self.f_sub_pai.setCurrentIndex(idx)
-        self.f_sub_pai.setEnabled(False) # Não muda o pai depois de criado
+        self.f_sub_pai.setEnabled(False)
         self.f_sub_nome.setText(s["nome_subindicador"])
         self.f_sub_ordem.setText(str(s.get("ordem", 0)))
         self.f_sub_ativo.setChecked(bool(s.get("ativo", 1)))
         self.f_sub_obs.setPlainText(s.get("observacoes") or "")
         self.btn_sub_del.setVisible(True)
+        # Atualiza badge
+        ind = db.get_indicador(s["codigo_indicador"])
+        nome_ind = ind["nome_indicador"] if ind else s["codigo_indicador"]
+        self._sub_pai_lbl.setText(f"{s['codigo_indicador']}  —  {nome_ind}")
 
     def _new_sub(self):
         self.tbl_sub.clearSelection()
         self.f_sub_id.clear()
         self.f_sub_pai.setEnabled(True)
-        # Tenta pegar do filtro se não for TODOS
+        self._sub_pai_lbl.setText("Novo subindicador — selecione o indicador pai abaixo")
         filtro = self.cb_filter_ind.currentData()
         if filtro and filtro != "TODOS":
             idx = self.f_sub_pai.findData(filtro)

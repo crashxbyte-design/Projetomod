@@ -1,134 +1,179 @@
-"""panel_analise_critica.py - Análise crítica por indicador."""
+"""panel_analise_critica.py — Análise crítica refinada."""
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QScrollArea, QComboBox, QTextEdit, QLineEdit, QPushButton,
-    QSizePolicy
+    QScrollArea, QComboBox, QTextEdit, QLineEdit, QPushButton, QSizePolicy
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 import database as db
 from styles import VERMELHO, VERMELHO_ESC, BRANCO, CINZA_BG, CINZA_BORDA, CINZA_SUAVE, PRETO_TITULO, VERDE, LARANJA
+from widgets import shadow
 
 NIVEIS = ["ATENÇÃO", "CRÍTICO", "OK", "MONITORAMENTO"]
+NIVEL_CORES = {"ATENÇÃO": "#F59E0B", "CRÍTICO": "#EF4444", "OK": "#10B981", "MONITORAMENTO": "#6366F1"}
 
+CSS_FIELD = "background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:8px 12px;color:#0F172A;font-family:'Segoe UI';font-size:10pt;"
+CSS_FIELD_FOCUS = "background:#FFFFFF;border:1.5px solid #BE123C;border-radius:6px;padding:8px 12px;color:#0F172A;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);"
 
-def _lbl(txt, bold=False):
-    l = QLabel(txt)
-    l.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold if bold else QFont.Weight.Normal))
-    l.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
+def _lbl(t, bold=False, size=9, color="#475569"):
+    l = QLabel(t)
+    l.setFont(QFont("Segoe UI", size, QFont.Weight.Bold if bold else QFont.Weight.Normal))
+    l.setStyleSheet(f"color:{color};background:transparent;border:none;")
     return l
 
+def _sec(t):
+    f = QFrame()
+    f.setStyleSheet("background:transparent;border:none;")
+    ly = QHBoxLayout(f); ly.setContentsMargins(0,12,0,6); ly.setSpacing(10)
+    bar = QFrame(); bar.setFixedSize(4,16)
+    bar.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
+    ly.addWidget(bar)
+    lbl = QLabel(t.upper())
+    lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+    lbl.setStyleSheet(f"color:#475569;letter-spacing:1px;background:transparent;border:none;")
+    ly.addWidget(lbl); ly.addStretch()
+    return f
 
-def _field():
-    w = QLineEdit()
-    w.setFixedHeight(34)
-    w.setFont(QFont("Segoe UI", 9))
-    w.setStyleSheet(f"QLineEdit{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QLineEdit:focus{{border-color:{VERMELHO};}}")
+def _fld(ph=""):
+    w = QLineEdit(); w.setPlaceholderText(ph); w.setFixedHeight(40)
+    w.setStyleSheet(f"QLineEdit{{{CSS_FIELD}}}QLineEdit:focus{{{CSS_FIELD_FOCUS}}}")
     return w
 
-
-def _textarea(rows=4):
-    w = QTextEdit()
-    w.setFixedHeight(rows * 28)
-    w.setFont(QFont("Segoe UI", 9))
-    w.setStyleSheet(f"QTextEdit{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:6px;}}QTextEdit:focus{{border-color:{VERMELHO};}}")
+def _txt(rows=4):
+    w = QTextEdit(); w.setFixedHeight(rows*28)
+    w.setStyleSheet(f"QTextEdit{{{CSS_FIELD}}}QTextEdit:focus{{{CSS_FIELD_FOCUS}}}")
     return w
+
+def _cbx(items=None, editable=False):
+    w = QComboBox(); w.setFixedHeight(40); w.setEditable(editable)
+    if items: w.addItems(items)
+    w.setStyleSheet(f"QComboBox{{{CSS_FIELD}}}QComboBox::drop-down{{border:none;padding-right:8px;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}")
+    return w
+
+def _row(lbl, widget, stretch=False):
+    f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+    ly = QVBoxLayout(f); ly.setContentsMargins(0,0,0,0); ly.setSpacing(6)
+    l = _lbl(lbl, color="#334155", size=9)
+    l.setFont(QFont("Segoe UI", 9, QFont.Weight.Medium))
+    ly.addWidget(l); ly.addWidget(widget)
+    if stretch: widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+    return f
+
+def _hrow(*pairs):
+    f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
+    ly = QHBoxLayout(f); ly.setContentsMargins(0,0,0,0); ly.setSpacing(20)
+    for lbl, widget, weight in pairs:
+        ly.addWidget(_row(lbl, widget), weight)
+    return f
 
 
 class AnaliseCriticaPanel(QWidget):
     def __init__(self, data, parent=None):
-        super().__init__(parent)
-        self.data = data
-        self._build_ui()
-        self._populate_selector()
+        super().__init__(parent); self.data = data
+        self._build_ui(); self._populate_selector()
 
     def _build_ui(self):
-        root = QVBoxLayout(self); root.setContentsMargins(0, 0, 0, 0)
+        root = QVBoxLayout(self); root.setContentsMargins(0,0,0,0)
         scroll = QScrollArea(); scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
         root.addWidget(scroll)
-        container = QWidget(); container.setStyleSheet(f"background:{CINZA_BG};")
-        scroll.setWidget(container)
-        ly = QVBoxLayout(container); ly.setContentsMargins(28, 24, 28, 28); ly.setSpacing(20)
+        ctr = QWidget(); ctr.setStyleSheet(f"background:transparent;")
+        scroll.setWidget(ctr)
+        ly = QVBoxLayout(ctr); ly.setContentsMargins(32,32,32,32); ly.setSpacing(24)
 
-        # Título
-        t = QLabel("ANÁLISE CRÍTICA DOS INDICADORES")
-        t.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        t.setStyleSheet(f"color:{PRETO_TITULO};background:transparent;border:none;")
-        ly.addWidget(t)
-        s = QLabel("Registre análise, causa, ação, responsável e prazo para cada indicador.")
-        s.setFont(QFont("Segoe UI", 9))
-        s.setStyleSheet(f"color:{CINZA_SUAVE};background:transparent;border:none;")
-        ly.addWidget(s)
+        # Header bar
+        hdr = QFrame()
+        hdr.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        hdr.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        hdr_ly = QHBoxLayout(hdr); hdr_ly.setContentsMargins(32,24,32,24); hdr_ly.setSpacing(24)
+        
+        ttl_ly = QVBoxLayout(); ttl_ly.setSpacing(6)
+        ttl_ly.addWidget(_lbl("Análise Crítica", bold=True, size=16, color="#0F172A"))
+        ttl_ly.addWidget(_lbl("Registre a análise completa, causas, plano de ação e respostas.", color="#64748B", size=10))
+        hdr_ly.addLayout(ttl_ly, 1)
 
-        # Seletor
-        sel_frame = QFrame()
-        sel_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        sel_ly = QHBoxLayout(sel_frame); sel_ly.setContentsMargins(20, 14, 20, 14); sel_ly.setSpacing(14)
-        sel_ly.addWidget(_lbl("Indicador:", True))
-        self.sel_ind = QComboBox()
-        self.sel_ind.setMinimumWidth(380); self.sel_ind.setFixedHeight(34)
-        self.sel_ind.setFont(QFont("Segoe UI", 9))
-        self.sel_ind.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QComboBox::drop-down{{border:none;}}")
-        sel_ly.addWidget(self.sel_ind)
-        sel_ly.addWidget(_lbl("Período:", True))
-        self.f_periodo = _field(); self.f_periodo.setFixedWidth(140); self.f_periodo.setPlaceholderText("Jan a Fev/2026")
-        sel_ly.addWidget(self.f_periodo)
-        sel_ly.addStretch()
-        ly.addWidget(sel_frame)
+        sep1 = QFrame(); sep1.setFrameShape(QFrame.Shape.VLine); sep1.setStyleSheet("background:#E2E8F0;border:none;"); sep1.setFixedWidth(1)
+        hdr_ly.addWidget(sep1)
 
-        # Form
-        form = QFrame()
-        form.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:6px;}}")
-        form_ly = QVBoxLayout(form); form_ly.setContentsMargins(24, 20, 24, 20); form_ly.setSpacing(14)
+        ind_col = QVBoxLayout(); ind_col.setSpacing(6)
+        ind_col.addWidget(_lbl("Indicador Alvo", bold=True, size=9, color="#475569"))
+        self.sel_ind = _cbx(); self.sel_ind.setMinimumWidth(360)
+        ind_col.addWidget(self.sel_ind)
+        hdr_ly.addLayout(ind_col)
 
-        form_ly.addWidget(_lbl("Análise Crítica", True))
-        self.f_analise = _textarea(5)
-        form_ly.addWidget(self.f_analise)
+        per_col = QVBoxLayout(); per_col.setSpacing(6)
+        per_col.addWidget(_lbl("Período Relativo", bold=True, size=9, color="#475569"))
+        self.f_periodo = _fld("Jan–Fev/2026"); self.f_periodo.setFixedWidth(140)
+        per_col.addWidget(self.f_periodo)
+        hdr_ly.addLayout(per_col)
+        
+        ly.addWidget(hdr)
 
-        row2 = QHBoxLayout(); row2.setSpacing(20)
-        col_c = QVBoxLayout(); col_c.addWidget(_lbl("Causa", True)); self.f_causa = _textarea(3); col_c.addWidget(self.f_causa)
-        col_a = QVBoxLayout(); col_a.addWidget(_lbl("Ação", True)); self.f_acao = _textarea(3); col_a.addWidget(self.f_acao)
-        row2.addLayout(col_c); row2.addLayout(col_a)
-        form_ly.addLayout(row2)
+        # Main card
+        card = QFrame()
+        card.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
+        card.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
+        c_ly = QVBoxLayout(card); c_ly.setContentsMargins(32,32,32,32); c_ly.setSpacing(24)
 
-        row3 = QHBoxLayout(); row3.setSpacing(20)
-        col_r = QVBoxLayout(); col_r.addWidget(_lbl("Responsável", True)); self.f_resp = _field(); col_r.addWidget(self.f_resp)
-        col_p = QVBoxLayout(); col_p.addWidget(_lbl("Prazo", True)); self.f_prazo = _field(); self.f_prazo.setPlaceholderText("DD/MM/AAAA"); col_p.addWidget(self.f_prazo)
-        col_n = QVBoxLayout(); col_n.addWidget(_lbl("Nível", True))
-        self.f_nivel = QComboBox(); self.f_nivel.addItems(NIVEIS); self.f_nivel.setFixedHeight(34)
-        self.f_nivel.setStyleSheet(f"QComboBox{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:4px;padding:4px 10px;}}QComboBox::drop-down{{border:none;}}")
-        col_n.addWidget(self.f_nivel)
-        row3.addLayout(col_r, 2); row3.addLayout(col_p, 1); row3.addLayout(col_n, 1)
-        form_ly.addLayout(row3)
+        # Análise crítica
+        c_ly.addWidget(_sec("Diagnóstico e Desempenho"))
+        self.f_analise = _txt(4)
+        c_ly.addWidget(_row("Análise Crítica — descreva o desempenho observado no período", self.f_analise))
 
-        # Botões
-        btn_ly = QHBoxLayout(); btn_ly.setSpacing(10)
-        self.lbl_status = QLabel("")
-        self.lbl_status.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        self.lbl_status.setStyleSheet("background:transparent;border:none;")
-        btn_ly.addWidget(self.lbl_status); btn_ly.addStretch()
-        btn_limpar = QPushButton("Limpar")
-        btn_limpar.setFixedHeight(34)
-        btn_limpar.setStyleSheet(f"QPushButton{{background:{BRANCO};border:1px solid {CINZA_BORDA};border-radius:5px;padding:0 16px;}}QPushButton:hover{{background:#F5F5F5;}}")
-        btn_save = QPushButton("💾  Salvar Análise")
-        btn_save.setFixedHeight(34)
-        btn_save.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:{BRANCO};border:none;border-radius:5px;padding:0 20px;font-weight:bold;}}QPushButton:hover{{background:{VERMELHO};}}")
-        btn_ly.addWidget(btn_limpar); btn_ly.addWidget(btn_save)
-        form_ly.addLayout(btn_ly)
-        ly.addWidget(form, 1)
+        sep_c1 = QFrame(); sep_c1.setFrameShape(QFrame.Shape.HLine); sep_c1.setStyleSheet("background:#E2E8F0;border:none;")
+        c_ly.addWidget(sep_c1)
 
-        # Signals
-        self.sel_ind.currentIndexChanged.connect(self._load_analise)
-        btn_save.clicked.connect(self._save)
-        btn_limpar.clicked.connect(self._clear)
+        # Causa + Ação
+        self.f_causa = _txt(3); self.f_acao = _txt(3)
+        c_ly.addWidget(_sec("Plano de Intervenção"))
+        c_ly.addWidget(_hrow(("Identificação da Causa Raiz", self.f_causa, 1), ("Ação Proposta / Plano", self.f_acao, 1)))
+
+        sep_c2 = QFrame(); sep_c2.setFrameShape(QFrame.Shape.HLine); sep_c2.setStyleSheet("background:#E2E8F0;border:none;")
+        c_ly.addWidget(sep_c2)
+
+        # Resp + Prazo + Nível
+        self.f_resp = _fld("Ex: Diretor de Operações")
+        self.f_prazo = _fld("DD/MM/AAAA")
+        self.f_nivel = _cbx(NIVEIS)
+        c_ly.addWidget(_sec("Responsabilidade e Prazos"))
+        c_ly.addWidget(_hrow(
+            ("Responsável pela Ação", self.f_resp, 2),
+            ("Prazo Alvo", self.f_prazo, 1),
+            ("Nível de Criticidade", self.f_nivel, 1)
+        ))
+
+        sep_c3 = QFrame(); sep_c3.setFrameShape(QFrame.Shape.HLine); sep_c3.setStyleSheet("background:#E2E8F0;border:none;")
+        c_ly.addWidget(sep_c3)
+
+        # Barra de ações
+        act = QHBoxLayout(); act.setSpacing(12)
+        self.lbl_st = _lbl("", bold=True, size=10, color=VERDE)
+        act.addWidget(self.lbl_st); act.addStretch()
+        
+        self._btn_limpar = QPushButton("Limpar Formulário")
+        self._btn_limpar.setFixedHeight(42); self._btn_limpar.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_limpar.setStyleSheet(f"QPushButton{{background:transparent;color:#475569;border:1px solid #CBD5E1;border-radius:8px;padding:0 24px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:#F1F5F9;}}")
+        
+        self._btn_save = QPushButton("Salvar Análise Crítica")
+        self._btn_save.setFixedHeight(42); self._btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_save.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 32px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:{VERMELHO};}}")
+        
+        act.addWidget(self._btn_limpar); act.addWidget(self._btn_save)
+        c_ly.addSpacing(8)
+        c_ly.addLayout(act)
+
+        ly.addWidget(card, 1)
+
+        self.sel_ind.currentIndexChanged.connect(self._load)
+        self._btn_save.clicked.connect(self._save)
+        self._btn_limpar.clicked.connect(self._clear)
 
     def _populate_selector(self):
         self.sel_ind.clear()
         for i in db.get_indicadores_ativos():
             self.sel_ind.addItem(f"{i['codigo_indicador']}  —  {i['nome_indicador']}", i['codigo_indicador'])
 
-    def _load_analise(self):
+    def _load(self):
         cod = self.sel_ind.currentData()
         if not cod: return
         acs = db.get_analise_critica(cod)
@@ -141,37 +186,32 @@ class AnaliseCriticaPanel(QWidget):
             self.f_resp.setText(ac.get("responsavel") or "")
             self.f_prazo.setText(ac.get("prazo") or "")
             idx = self.f_nivel.findText(ac.get("nivel") or "ATENÇÃO")
-            self.f_nivel.setCurrentIndex(idx if idx >= 0 else 0)
+            self.f_nivel.setCurrentIndex(max(idx, 0))
         else:
             self._clear()
 
     def _save(self):
         cod = self.sel_ind.currentData()
         if not cod:
-            self.lbl_status.setText("⚠️ Selecione um indicador.")
-            self.lbl_status.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
+            self.lbl_st.setText("⚠️ Selecione um indicador.")
+            self.lbl_st.setStyleSheet(f"color:{LARANJA};background:transparent;border:none;")
             return
         ok = db.upsert_analise_critica({
             "codigo_indicador": cod,
-            "periodo":    self.f_periodo.text().strip(),
-            "analise":    self.f_analise.toPlainText().strip(),
-            "causa":      self.f_causa.toPlainText().strip(),
-            "acao":       self.f_acao.toPlainText().strip(),
-            "responsavel":self.f_resp.text().strip(),
-            "prazo":      self.f_prazo.text().strip(),
-            "nivel":      self.f_nivel.currentText(),
+            "periodo":     self.f_periodo.text().strip(),
+            "analise":     self.f_analise.toPlainText().strip(),
+            "causa":       self.f_causa.toPlainText().strip(),
+            "acao":        self.f_acao.toPlainText().strip(),
+            "responsavel": self.f_resp.text().strip(),
+            "prazo":       self.f_prazo.text().strip(),
+            "nivel":       self.f_nivel.currentText(),
         })
-        if ok:
-            self.lbl_status.setText("✅ Análise salva com sucesso!")
-            self.lbl_status.setStyleSheet(f"color:{VERDE};background:transparent;border:none;")
-        else:
-            self.lbl_status.setText("❌ Erro ao salvar.")
-            self.lbl_status.setStyleSheet(f"color:{VERMELHO};background:transparent;border:none;")
+        cor = VERDE if ok else VERMELHO
+        msg = "✅ Análise salva!" if ok else "❌ Erro ao salvar."
+        self.lbl_st.setText(msg)
+        self.lbl_st.setStyleSheet(f"color:{cor};background:transparent;border:none;font-weight:bold;font-family:'Segoe UI';")
 
     def _clear(self):
-        for w in [self.f_periodo, self.f_resp, self.f_prazo]:
-            w.clear()
-        for w in [self.f_analise, self.f_causa, self.f_acao]:
-            w.clear()
-        self.f_nivel.setCurrentIndex(0)
-        self.lbl_status.setText("")
+        for w in [self.f_periodo, self.f_resp, self.f_prazo]: w.clear()
+        for w in [self.f_analise, self.f_causa, self.f_acao]: w.clear()
+        self.f_nivel.setCurrentIndex(0); self.lbl_st.setText("")
