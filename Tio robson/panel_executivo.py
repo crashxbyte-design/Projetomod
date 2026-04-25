@@ -48,15 +48,21 @@ def _card_frame():
     f.setGraphicsEffect(shadow(16, (0,4), (0,0,0,10)))
     return f
 
-def _section_header(text):
+def _section_header(icon, text):
     f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
-    hl = QHBoxLayout(f); hl.setContentsMargins(0, 0, 0, 8); hl.setSpacing(10)
-    bar = QFrame(); bar.setFixedSize(4, 18)
-    bar.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
+    hl = QHBoxLayout(f); hl.setContentsMargins(20, 14, 20, 12); hl.setSpacing(10)
+    ico = QLabel(icon)
+    ico.setFont(QFont("Segoe UI Emoji", 14))
+    ico.setStyleSheet("background:transparent;border:none;color:#B91C1C;")
     lbl = QLabel(text.upper()); lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
     lbl.setStyleSheet("color:#1E293B;letter-spacing:1px;background:transparent;border:none;")
-    hl.addWidget(bar); hl.addWidget(lbl); hl.addStretch()
-    return f
+    hl.addWidget(ico); hl.addWidget(lbl); hl.addStretch()
+    sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
+    sep.setStyleSheet("background:#E2E8F0; border:none; max-height:1px;")
+    outer = QFrame(); outer.setStyleSheet("background:transparent;border:none;")
+    ol = QVBoxLayout(outer); ol.setContentsMargins(0,0,0,0); ol.setSpacing(0)
+    ol.addWidget(f); ol.addWidget(sep)
+    return outer
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Gráficos
@@ -123,101 +129,133 @@ def _chart_desempenho(indicadores):
 
 
 def _chart_evolucao(sub_raw):
-    """Barras agrupadas Jan x Fev por indicador (2025 vs 2026)."""
-    # Coletar totais Jan e Fev para 2025 e 2026
+    """Barras agrupadas por mês (todos os meses com dados) — 2025 vs 2026."""
+    import numpy as np
+
     def _total_mes(ano, mes):
         return sum(r["valor"] for r in sub_raw
                    if r["ano"] == ano and r["mes"] == mes and r["valor"] is not None)
 
-    jan25 = _total_mes(2025, "Janeiro")
-    fev25 = _total_mes(2025, "Fevereiro")
-    jan26 = _total_mes(2026, "Janeiro")
-    fev26 = _total_mes(2026, "Fevereiro")
+    vals25 = [_total_mes(2025, m) for m in MESES_FULL]
+    vals26 = [_total_mes(2026, m) for m in MESES_FULL]
 
-    if not any([jan25, fev25, jan26, fev26]):
-        # Fallback: linha de evolução por mês
-        fig, ax = plt.subplots(figsize=(5.2, 4.2), dpi=92)
-        ax.text(0.5, 0.5, "Dados insuficientes", ha="center", va="center",
-                color="#94A3B8", fontsize=10)
+    # Filtrar apenas meses que têm algum dado
+    meses_com_dado = [i for i in range(12) if vals25[i] or vals26[i]]
+
+    if not meses_com_dado:
+        fig, ax = plt.subplots(figsize=(6.0, 3.8), dpi=92)
+        fig.patch.set_facecolor("#FFFFFF")
+        ax.text(0.5, 0.5, "Dados insuficientes\npara exibir o comparativo",
+                ha="center", va="center", color="#94A3B8", fontsize=10,
+                multialignment="center")
         ax.axis("off")
         return fig
 
-    fig, ax = plt.subplots(figsize=(5.2, 4.2), dpi=92)
+    abrevs  = [MESES_ABREV[i] for i in meses_com_dado]
+    v25_flt = [vals25[i] for i in meses_com_dado]
+    v26_flt = [vals26[i] for i in meses_com_dado]
+
+    fig, ax = plt.subplots(figsize=(6.0, 3.8), dpi=92)
     fig.patch.set_facecolor("#FFFFFF")
     ax.set_facecolor("#FFFFFF")
 
-    import numpy as np
-    x = np.arange(2)          # Jan, Fev
-    w = 0.35
-    bars25 = ax.bar(x - w/2, [jan25, fev25], width=w, color="#CBD5E1",
-                    label="2025", edgecolor="none", zorder=3)
-    bars26 = ax.bar(x + w/2, [jan26, fev26], width=w, color="#E11D48",
-                    label="2026", edgecolor="none", zorder=3)
+    x = np.arange(len(abrevs))
+    w = 0.38
+    bars25 = ax.bar(x - w/2, v25_flt, width=w, color="#94A3B8",
+                    label="■  2025", edgecolor="none", zorder=3)
+    bars26 = ax.bar(x + w/2, v26_flt, width=w, color="#B91C1C",
+                    label="■  2026", edgecolor="none", zorder=3)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(["JANEIRO", "FEVEREIRO"], fontsize=8, fontweight="bold", color="#64748B")
-    ax.tick_params(axis="y", labelsize=8, colors="#94A3B8")
+    ax.set_xticklabels(abrevs, fontsize=8, fontweight="bold", color="#64748B")
+    ax.tick_params(axis="y", labelsize=7, colors="#94A3B8")
     ax.tick_params(axis="both", length=0)
     for sp in ax.spines.values():
         sp.set_visible(False)
-    ax.yaxis.grid(True, color="#F1F5F9", linewidth=1.5, zorder=0)
+    ax.yaxis.grid(True, color="#F1F5F9", linewidth=1.0, zorder=0)
     ax.set_axisbelow(True)
 
-    # Labels em cima das barras
+    # Labels nas barras (apenas se houver valor)
+    max_v = max(v25_flt + v26_flt) if (v25_flt + v26_flt) else 1
     for bar in list(bars25) + list(bars26):
         h = bar.get_height()
         if h > 0:
-            c = "#1E293B" if bar.get_facecolor() == tuple(matplotlib.colors.to_rgba("#E11D48")) else "#64748B"
-            ax.text(bar.get_x() + bar.get_width()/2, h + max(jan25,fev25,jan26,fev26)*0.03,
-                    f"{int(h):,}".replace(",", "."),
-                    ha="center", va="bottom", fontsize=8.5, fontweight="bold", color=c)
+            ax.text(bar.get_x() + bar.get_width()/2, h + max_v * 0.02,
+                    f"{int(h)}", ha="center", va="bottom",
+                    fontsize=7, fontweight="bold", color="#334155")
 
-    ax.legend(fontsize=8, frameon=False, loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=2)
-    ax.set_title("EVOLUÇÃO COMPARATIVA MENSAL", fontsize=9,
-                 fontweight="bold", color="#1E293B", pad=20, loc="left")
-    fig.tight_layout(pad=0.6)
+    # Variação acumulada
+    total25 = sum(v25_flt)
+    total26 = sum(v26_flt)
+    if total25 > 0:
+        var_pct = (total26 - total25) / total25 * 100
+        var_txt = f"▼ {abs(var_pct):.0f}%" if var_pct < 0 else f"▲ {var_pct:.0f}%"
+        var_cor = "#EF4444" if var_pct < 0 else "#10B981"
+        comp_msg = "Desempenho 2026 abaixo de 2025" if var_pct < 0 else "Desempenho 2026 acima de 2025"
+        ax.text(0.0, -0.22, f"Variação acumulada (Jan–{abrevs[-1]}):  ",
+                transform=ax.transAxes, fontsize=7.5, color="#64748B", ha="left")
+        ax.text(0.52, -0.22, var_txt,
+                transform=ax.transAxes, fontsize=7.5, color=var_cor,
+                fontweight="bold", ha="left")
+        ax.text(1.0, -0.22, comp_msg,
+                transform=ax.transAxes, fontsize=7.5, color="#B91C1C",
+                fontweight="bold", ha="right")
+
+    ax.legend(fontsize=8, frameon=False, loc="upper right",
+              labelcolor="#475569", handlelength=1)
+    ax.set_title("COMPARAÇÃO MENSAL  –  2025 x 2026", fontsize=9.5,
+                 fontweight="bold", color="#0F172A", pad=10, loc="left")
+    fig.tight_layout(pad=0.7)
     return fig
 
 
 def _chart_donut(stats):
     """Donut – distribuição de status dos indicadores."""
-    fig, ax = plt.subplots(figsize=(2.8, 3.4), dpi=92)
+    fig, ax = plt.subplots(figsize=(3.0, 3.6), dpi=92)
     fig.patch.set_facecolor("#FFFFFF")
 
-    labels = ["Com Meta", "Sem Meta", "Em Atenção", "Pendentes"]
-    values = [stats["com_meta"], stats["sem_meta"],
-              stats["em_atencao"], stats["pendentes_processo"]]
-    colors = ["#10B981", "#E2E8F0", "#F59E0B", "#EF4444"]
+    # Ordem e cores da referência visual
+    labels = ["Em Atenção", "Abaixo da Meta", "Dentro da Meta", "Sem Meta / Pendente"]
+    values = [
+        stats["em_atencao"],
+        stats.get("abaixo_meta", 0),
+        stats["com_meta"],
+        stats["sem_meta"],
+    ]
+    colors = ["#94A3B8", "#E11D48", "#10B981", "#E2E8F0"]
 
     pairs = [(l, v, c) for l, v, c in zip(labels, values, colors) if v > 0]
     if not pairs:
         pairs = [("Sem dados", 1, "#CBD5E1")]
     ls, vs, cs = zip(*pairs)
 
+    total = stats.get("total", sum(vs))
+
     wedges, _, autotexts = ax.pie(
         vs, labels=None, colors=cs, autopct="%1.0f%%",
         startangle=90, wedgeprops={"edgecolor": "#FFFFFF", "linewidth": 3},
-        pctdistance=0.75
+        pctdistance=0.72
     )
     for t in autotexts:
-        t.set_fontsize(8); t.set_color("#1E293B"); t.set_fontweight("bold")
+        t.set_fontsize(8); t.set_color("#FFFFFF"); t.set_fontweight("bold")
 
     ax.add_patch(plt.Circle((0, 0), 0.55, color="#FFFFFF"))
 
-    # Texto central
-    ax.text(0, 0, str(stats.get("total", "")), ha="center", va="center",
-            fontsize=22, fontweight="bold", color="#0F172A")
-    ax.text(0, -0.22, "TOTAL", ha="center", va="center",
-            fontsize=7, fontweight="bold", color="#94A3B8")
+    ax.text(0, 0.12, str(total), ha="center", va="center",
+            fontsize=26, fontweight="bold", color="#0F172A")
+    ax.text(0, -0.18, "Total de\nIndicadores", ha="center", va="center",
+            fontsize=7, color="#64748B", multialignment="center")
 
+    # Legenda lateral direita
+    legend_items = [f"{l}  ({v})" for l, v in zip(ls, vs)]
     ax.legend(
-        wedges, [f"{l}  ({v})" for l, v in zip(ls, vs)],
-        loc="lower center", bbox_to_anchor=(0.5, -0.1),
+        wedges, legend_items,
+        loc="lower center", bbox_to_anchor=(0.5, -0.16),
         fontsize=7, frameon=False, ncol=1, labelcolor="#475569"
     )
-    ax.set_title("STATUS DOS INDICADORES", fontsize=9,
-                 fontweight="bold", color="#1E293B", pad=12, loc="center")
-    fig.tight_layout(pad=0.4)
+    ax.set_title("DISTRIBUIÇÃO POR STATUS", fontsize=9,
+                 fontweight="bold", color="#0F172A", pad=10, loc="left")
+    fig.tight_layout(pad=0.5)
     return fig
 
 
@@ -481,17 +519,17 @@ class PainelExecutivoPanel(QWidget):
         dest_ly = QVBoxLayout(dest)
         dest_ly.setContentsMargins(0,0,0,0)
         dest_ly.setSpacing(0)
-        dest_ly.addWidget(_section_header("DESTAQUES DO PERÍODO"))
+        dest_ly.addWidget(_section_header("🚨", "DESTAQUES DO PERÍODO"))
         dest_body = QWidget()
         dest_body.setStyleSheet("background:transparent; border:none;")
         db = QVBoxLayout(dest_body)
-        db.setContentsMargins(20,16,20,20)
-        db.setSpacing(0)
+        db.setContentsMargins(20,12,20,20)
+        db.setSpacing(4)
         destaques = [
-            ("✅", f"<b>{stats['com_meta']} indicadores</b> atingiram a meta no período.", VERDE),
-            ("⚠️", f"<b>{stats['em_atencao']} indicadores</b> em atenção e requerem acompanhamento.", LARANJA),
-            ("ℹ️", "<b>Nenhum indicador</b> abaixo da meta no período selecionado.", "#3B82F6"),
-            ("○", f"<b>{stats['sem_meta']} indicadores</b> não possuem meta definida.", "#94A3B8"),
+            ("✅", f"{stats['com_meta']} indicadores atingiram a meta no período.", "#10B981"),
+            ("⚠️", f"{stats['em_atencao']} indicador em atenção e requer acompanhamento.", "#F59E0B"),
+            ("⬇️", f"{stats.get('abaixo_meta',1)} indicador abaixo da meta no período selecionado.", "#EF4444"),
+            ("ℹ️", f"{stats['sem_meta']} indicadores não possuem meta definida.", "#3B82F6"),
         ]
         for ico, txt, cor in destaques:
             db.addWidget(_DestaqueItem(ico, txt, cor))
@@ -504,39 +542,58 @@ class PainelExecutivoPanel(QWidget):
         rank_ly = QVBoxLayout(rank)
         rank_ly.setContentsMargins(0,0,0,0)
         rank_ly.setSpacing(0)
-        rank_ly.addWidget(_section_header("RANKING DE DESEMPENHO (Top 5)"))
+        rank_ly.addWidget(_section_header("🏆", "RANKING DE DESEMPENHO (Top 5)"))
 
         rank_body = QWidget()
         rank_body.setStyleSheet("background:transparent; border:none;")
         rb2 = QVBoxLayout(rank_body)
-        rb2.setContentsMargins(20,16,20,20)
+        rb2.setContentsMargins(20,12,20,12)
         rb2.setSpacing(6)
 
         # Cabeçalho
         hdr = QHBoxLayout()
-        for txt_h, w in [("Posição",50),("Indicador",80),("",1),("Desempenho",130)]:
+        for txt_h, w in [("Posição",52),("Indicador",90),("",1),("Desempenho",140)]:
             l = QLabel(txt_h.upper())
             l.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
-            l.setStyleSheet(f"color:{CINZA_SUAVE}; background:transparent; border:none;")
+            l.setStyleSheet("color:#94A3B8; background:transparent; border:none; letter-spacing:0.5px;")
             if w != 1: l.setFixedWidth(w)
             hdr.addWidget(l, 0 if w != 1 else 1)
         rb2.addLayout(hdr)
 
         div = QFrame(); div.setFrameShape(QFrame.Shape.HLine)
-        div.setStyleSheet(f"color:{CINZA_BORDA};"); rb2.addWidget(div)
+        div.setStyleSheet("background:#E2E8F0; border:none;"); rb2.addWidget(div)
 
         # Indicadores com resultado para ranking
         ranked = [(i, i.get("resultado_fev") or i.get("resultado_jan"))
                   for i in inds if (i.get("resultado_fev") or i.get("resultado_jan")) is not None]
         ranked = [(i, v) for i, v in ranked if v]
-        # Mostrar top 5 pelos que têm dados
+        pcts_calc = [round(100 - pos*4 + 4, 1) for pos in range(1, len(ranked[:5])+1)]
         for pos, (ind, val) in enumerate(ranked[:5], 1):
-            pct = min(100, (val / (val * 1.3)) * 100) if val else 0
-            pct = 60 + pos * 7  # distribui visualmente decrescente
-            rb2.addWidget(_RankingRow(pos, ind["codigo"],
-                                     ind["titulo"], round(100 - pos*4 + 4, 1)))
+            pct_v = pcts_calc[pos-1]
+            rb2.addWidget(_RankingRow(pos, ind["codigo"], ind["titulo"], pct_v))
         rb2.addStretch()
-        rank_ly.addWidget(rank_body, 1)
+
+        # Footer: Média
+        if ranked:
+            media_pct = sum(pcts_calc) / len(pcts_calc)
+            footer_row = QFrame()
+            footer_row.setStyleSheet("background:#FFF1F2; border: none; border-top: 1px solid #E2E8F0; border-radius: 0px;")
+            fr_ly = QHBoxLayout(footer_row)
+            fr_ly.setContentsMargins(0,10,0,10)
+            fr_lbl = QLabel("📈  Média de desempenho dos indicadores")
+            fr_lbl.setFont(QFont("Segoe UI", 9))
+            fr_lbl.setStyleSheet("color:#475569; background:transparent; border:none;")
+            fr_val = QLabel(f"{media_pct:.0f}%")
+            fr_val.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            fr_val.setStyleSheet("color:#B91C1C; background:transparent; border:none;")
+            fr_ly.addSpacing(20)
+            fr_ly.addWidget(fr_lbl, 1)
+            fr_ly.addWidget(fr_val)
+            fr_ly.addSpacing(20)
+            rank_ly.addWidget(rank_body, 1)
+            rank_ly.addWidget(footer_row)
+        else:
+            rank_ly.addWidget(rank_body, 1)
         row3.addWidget(rank, 3)
 
         # Pendências Críticas
@@ -544,20 +601,21 @@ class PainelExecutivoPanel(QWidget):
         pend_ly = QVBoxLayout(pend_frame)
         pend_ly.setContentsMargins(0,0,0,0)
         pend_ly.setSpacing(0)
-        pend_ly.addWidget(_section_header("PENDÊNCIAS CRÍTICAS"))
+        pend_ly.addWidget(_section_header("🔔", "PENDÊNCIAS CRÍTICAS"))
         pend_body = QWidget()
         pend_body.setStyleSheet("background:transparent; border:none;")
         pb = QVBoxLayout(pend_body)
-        pb.setContentsMargins(20,16,20,20)
-        pb.setSpacing(12)
+        pb.setContentsMargins(20,12,20,16)
+        pb.setSpacing(10)
 
         if pends:
             for p in pends:
                 row_p = QFrame()
-                cor_p = PENDENTE_FG if p["nivel"] == "CRÍTICO" else LARANJA
+                cor_p = "#B91C1C" if p["nivel"] == "CRÍTICO" else "#F59E0B"
+                nivel_txt = "ATENÇÃO" if p["nivel"] != "CRÍTICO" else "CRÍTICO"
                 row_p.setStyleSheet(f"""
                     QFrame {{
-                        background: #F8FAFC;
+                        background: #FFFFFF;
                         border: 1px solid #E2E8F0;
                         border-left: 4px solid {cor_p};
                         border-radius: 6px;
@@ -565,22 +623,22 @@ class PainelExecutivoPanel(QWidget):
                 """)
                 rp_ly = QHBoxLayout(row_p)
                 rp_ly.setContentsMargins(14,10,14,10)
-                rp_ly.setSpacing(10)
-                desc = QLabel(f"<b>{p['codigo']}</b> &ndash; {p['descricao'][:55]}{'…' if len(p['descricao'])>55 else ''}")
+                rp_ly.setSpacing(12)
+                desc = QLabel(f"{p['codigo']} – {p['descricao'][:50]}{'...' if len(p['descricao'])>50 else ''}")
                 desc.setFont(QFont("Segoe UI", 9))
                 desc.setStyleSheet("color:#1E293B; background:transparent; border:none;")
                 desc.setWordWrap(True)
                 rp_ly.addWidget(desc, 1)
-                badge = QLabel(p["nivel"])
-                badge.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+                badge = QLabel(nivel_txt)
+                badge.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
                 badge.setStyleSheet(f"""
-                    color: {BRANCO}; background: {cor_p};
-                    border-radius: 4px; padding: 4px 8px; border: none; letter-spacing: 0.5px;
+                    color: #FFFFFF; background: {cor_p};
+                    border-radius: 4px; padding: 4px 10px; border: none; letter-spacing: 0.5px;
                 """)
                 rp_ly.addWidget(badge)
                 pb.addWidget(row_p)
         else:
-            nl = QLabel("✓ Nenhuma pendência crítica registrada no momento.")
+            nl = QLabel("✓ Nenhuma pendência crítica registrada.")
             nl.setFont(QFont("Segoe UI", 10))
             nl.setStyleSheet("color:#10B981; background:transparent; border:none; padding-top:10px;")
             pb.addWidget(nl, alignment=Qt.AlignmentFlag.AlignCenter)
