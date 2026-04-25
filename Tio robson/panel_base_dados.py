@@ -63,23 +63,44 @@ class BaseDadosPanel(QWidget):
 
     # ── UI BUILDER ────────────────────────────────────────────────────────
     def _build_ui(self):
-        self.setStyleSheet("background: #F1F5F9;")
+        self.setStyleSheet("background: #EEF2F7;")
         root = QVBoxLayout(self); root.setContentsMargins(0,0,0,0); root.setSpacing(0)
-        
+
+        # Tab bar header strip
+        tab_bar_strip = QFrame()
+        tab_bar_strip.setStyleSheet("background:#FFFFFF; border-bottom:2px solid #E2E8F0;")
+        tab_bar_layout = QVBoxLayout(tab_bar_strip); tab_bar_layout.setContentsMargins(0,0,0,0); tab_bar_layout.setSpacing(0)
+
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
         self.tabs.setStyleSheet(f"""
-            QTabWidget::pane {{ border: none; background: transparent; border-top: 1px solid #E2E8F0; }}
-            QTabBar {{ background: #FFFFFF; }}
-            QTabBar::tab {{ 
-                background: transparent; border: none; padding: 16px 28px; 
-                color: #64748B; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; 
-                border-bottom: 3px solid transparent; 
+            QTabWidget::pane {{ border: none; background: transparent; }}
+            QTabBar {{ background: #FFFFFF; border: none; }}
+            QTabBar::tab {{
+                background: transparent;
+                border: none;
+                border-bottom: 3px solid transparent;
+                padding: 18px 32px;
+                color: #94A3B8;
+                font-family: 'Segoe UI';
+                font-size: 13px;
+                font-weight: bold;
+                letter-spacing: 0.2px;
+                margin-right: 2px;
             }}
-            QTabBar::tab:hover {{ color: #0F172A; background: #F8FAFC; }}
-            QTabBar::tab:selected {{ color: {VERMELHO_ESC}; border-bottom: 3px solid {VERMELHO_ESC}; }}
+            QTabBar::tab:hover {{
+                color: #334155;
+                background: #F8FAFC;
+                border-bottom: 3px solid #CBD5E1;
+            }}
+            QTabBar::tab:selected {{
+                color: {VERMELHO_ESC};
+                border-bottom: 3px solid {VERMELHO_ESC};
+                background: #FFFFFF;
+            }}
         """)
-        root.addWidget(self.tabs)
+        tab_bar_layout.addWidget(self.tabs)
+        root.addWidget(tab_bar_strip)
 
         self.tab_ind = QWidget()
         self.tab_sub = QWidget()
@@ -114,25 +135,39 @@ class BaseDadosPanel(QWidget):
         self.tab_ind.setStyleSheet("background:transparent;")
         ly = QVBoxLayout(self.tab_ind); ly.setContentsMargins(0,0,0,0); ly.setSpacing(0)
 
-        # ── Cabeçalho Herói ──────────────────────────────────────────────────
+        # ── Cabeçalho Hero ──────────────────────────────────────────────────
         header = QFrame()
-        header.setStyleSheet("background:#FFFFFF; border-bottom:1px solid #E2E8F0;")
-        h_ly = QHBoxLayout(header); h_ly.setContentsMargins(40,30,40,30); h_ly.setSpacing(20)
+        header.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+            "stop:0 #FFFFFF, stop:1 #F8FAFC);"
+            "border-bottom: 1px solid #DDE3EC;"
+        )
+        h_ly = QHBoxLayout(header); h_ly.setContentsMargins(40,28,40,28); h_ly.setSpacing(24)
 
-        ttl_col = QVBoxLayout(); ttl_col.setSpacing(6)
+        # Accent bar
+        accent = QFrame(); accent.setFixedWidth(4); accent.setFixedHeight(44)
+        accent.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
+        h_ly.addWidget(accent)
+
+        ttl_col = QVBoxLayout(); ttl_col.setSpacing(5)
         t1 = QLabel("Catálogo de Indicadores Principais")
-        t1.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        t1.setFont(QFont("Segoe UI", 17, QFont.Weight.Bold))
         t1.setStyleSheet("color:#0F172A; background:transparent; border:none;")
         t2 = QLabel("Gerencie a estrutura central do seu book de performance.")
-        t2.setFont(QFont("Segoe UI", 11))
+        t2.setFont(QFont("Segoe UI", 10))
         t2.setStyleSheet("color:#64748B; background:transparent; border:none;")
         ttl_col.addWidget(t1); ttl_col.addWidget(t2)
         h_ly.addLayout(ttl_col, 1)
 
         self.btn_new_ind = QPushButton("＋  Novo Indicador")
-        self.btn_new_ind.setFixedHeight(42); self.btn_new_ind.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_new_ind.setFixedHeight(44); self.btn_new_ind.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_new_ind.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        self.btn_new_ind.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 24px;}}QPushButton:hover{{background:{VERMELHO};}}")
+        self.btn_new_ind.setStyleSheet(
+            f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;"
+            f"border-radius:8px;padding:0 28px;letter-spacing:0.3px;}}"
+            f"QPushButton:hover{{background:{VERMELHO};box-shadow:0 4px 12px rgba(185,28,28,0.35);}}"
+            f"QPushButton:pressed{{background:#991B1B;}}"
+        )
         h_ly.addWidget(self.btn_new_ind)
         ly.addWidget(header)
 
@@ -146,9 +181,9 @@ class BaseDadosPanel(QWidget):
 
         # Tabela
         tbl_frame = QFrame()
-        tbl_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E5E7EB;border-radius:8px;}}")
-        tbl_frame.setGraphicsEffect(shadow(8,(0,2),(0,0,0,8)))
-        tf_ly = QVBoxLayout(tbl_frame); tf_ly.setContentsMargins(0,0,0,0)
+        tbl_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #DDE3EC;border-radius:12px;}}")
+        tbl_frame.setGraphicsEffect(shadow(16,(0,4),(0,0,0,12)))
+        tf_ly = QVBoxLayout(tbl_frame); tf_ly.setContentsMargins(0,0,0,0); tf_ly.setSpacing(0)
 
         self.tbl_ind = QTableWidget(0, 6)
         self.tbl_ind.setHorizontalHeaderLabels(["Código","Nome do Indicador","Tipo","Periodicidade","Meta","Ativo"])
@@ -156,30 +191,61 @@ class BaseDadosPanel(QWidget):
         self.tbl_ind.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.tbl_ind.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tbl_ind.verticalHeader().setVisible(False)
-        self.tbl_ind.setAlternatingRowColors(True)
+        self.tbl_ind.setAlternatingRowColors(False)
         self.tbl_ind.setShowGrid(False)
         self.tbl_ind.setStyleSheet(f"""
-            QTableWidget{{ border:none; font-size:10pt; background:{BRANCO}; border-radius:10px; }}
-            QTableWidget::item{{ padding:12px 16px; color:#1E293B; border-bottom:1px solid #F1F5F9; }}
-            QTableWidget::item:selected{{ background:#FFF1F2; color:{VERMELHO_ESC}; font-weight:bold; }}
-            QHeaderView::section{{ background:#F8FAFC; color:#475569; font-weight:bold; font-size:9pt;
-                padding:14px 16px; border:none; border-bottom:2px solid #E2E8F0; text-transform:uppercase; letter-spacing:0.5px; }}
-            QTableWidget::item:alternate{{ background:#FAFAFA; }}
+            QTableWidget {{
+                border: none;
+                font-size: 10pt;
+                font-family: 'Segoe UI';
+                background: {BRANCO};
+                border-radius: 12px;
+                outline: none;
+            }}
+            QTableWidget::item {{
+                padding: 0px 18px;
+                color: #1E293B;
+                border-bottom: 1px solid #F1F5F9;
+            }}
+            QTableWidget::item:hover {{
+                background: #F8FAFC;
+            }}
+            QTableWidget::item:selected {{
+                background: #FEF2F2;
+                color: {VERMELHO_ESC};
+                border-left: 3px solid {VERMELHO_ESC};
+                font-weight: bold;
+            }}
+            QHeaderView::section {{
+                background: #F8FAFC;
+                color: #64748B;
+                font-weight: bold;
+                font-size: 8pt;
+                font-family: 'Segoe UI';
+                padding: 16px 18px;
+                border: none;
+                border-bottom: 2px solid #E2E8F0;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            }}
         """)
         hdr = self.tbl_ind.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         for i in range(2,6): hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setStretchLastSection(False)
-        self.tbl_ind.verticalHeader().setDefaultSectionSize(44)
+        self.tbl_ind.verticalHeader().setDefaultSectionSize(48)
         tf_ly.addWidget(self.tbl_ind)
 
         # Status bar below table
+        status_bar = QFrame()
+        status_bar.setStyleSheet("background:#F8FAFC;border-top:1px solid #F1F5F9;border-radius:0px;")
+        sb_ly = QHBoxLayout(status_bar); sb_ly.setContentsMargins(18,8,18,8)
         self.lbl_status_ind = QLabel("")
-        self.lbl_status_ind.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        self.lbl_status_ind.setContentsMargins(16,6,16,6)
-        self.lbl_status_ind.setStyleSheet("background:transparent;border:none;")
-        tf_ly.addWidget(self.lbl_status_ind)
+        self.lbl_status_ind.setFont(QFont("Segoe UI", 9))
+        self.lbl_status_ind.setStyleSheet("background:transparent;border:none;color:#64748B;")
+        sb_ly.addWidget(self.lbl_status_ind)
+        tf_ly.addWidget(status_bar)
         splitter.addWidget(tbl_frame)
 
         # ── Painel lateral ────────────────────────────────────────────────
@@ -193,31 +259,46 @@ class BaseDadosPanel(QWidget):
         # ── Seção helper ─────────────────────────────────────
         def _section(title):
             f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
-            hl = QHBoxLayout(f); hl.setContentsMargins(0,12,0,6); hl.setSpacing(10)
-            bar = QFrame(); bar.setFixedSize(4,16)
+            hl = QHBoxLayout(f); hl.setContentsMargins(0,14,0,8); hl.setSpacing(10)
+            bar = QFrame(); bar.setFixedSize(4,18)
             bar.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
             lbl = QLabel(title.upper()); lbl.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-            lbl.setStyleSheet("color:#475569;letter-spacing:1px;background:transparent;border:none;")
+            lbl.setStyleSheet("color:#334155;letter-spacing:1.2px;background:transparent;border:none;")
             hl.addWidget(bar); hl.addWidget(lbl); hl.addStretch()
             return f
 
         def _fld(ph=""):
             w = QLineEdit(); w.setPlaceholderText(ph); w.setFixedHeight(40)
-            w.setStyleSheet(f"QLineEdit{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);}}"); return w
+            w.setStyleSheet(
+                f"QLineEdit{{background:#F9FAFB;border:1.5px solid #E2E8F0;border-radius:7px;"
+                f"padding:6px 14px;color:#0F172A;font-size:10pt;}}"
+                f"QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;"
+                f"box-shadow:0 0 0 3px rgba(185,28,28,0.12);}}"
+                f"QLineEdit::placeholder{{color:#94A3B8;}}"
+            ); return w
         def _cbo(items):
             w = QComboBox(); w.addItems(items); w.setFixedHeight(40)
-            w.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}"); return w
+            w.setStyleSheet(
+                f"QComboBox{{background:#F9FAFB;border:1.5px solid #E2E8F0;border-radius:7px;"
+                f"padding:6px 14px;color:#0F172A;font-size:10pt;}}"
+                f"QComboBox::drop-down{{border:none;width:20px;}}"
+                f"QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}"
+            ); return w
         def _row(lbl, w):
             f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
-            v = QVBoxLayout(f); v.setContentsMargins(0,0,0,0); v.setSpacing(6)
-            l = QLabel(lbl); l.setFont(QFont("Segoe UI",9, QFont.Weight.Medium)); l.setStyleSheet("color:#334155;background:transparent;border:none;")
+            v = QVBoxLayout(f); v.setContentsMargins(0,0,0,0); v.setSpacing(5)
+            l = QLabel(lbl); l.setFont(QFont("Segoe UI",8, QFont.Weight.Bold))
+            l.setStyleSheet("color:#475569;background:transparent;border:none;letter-spacing:0.3px;")
             v.addWidget(l); v.addWidget(w); return f
 
         # Card form
         card = QFrame()
-        card.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
-        card.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
-        card_ly = QVBoxLayout(card); card_ly.setContentsMargins(28,28,28,28); card_ly.setSpacing(14)
+        card.setStyleSheet(
+            f"QFrame{{background:{BRANCO};border:1px solid #DDE3EC;"
+            f"border-radius:14px;}}"
+        )
+        card.setGraphicsEffect(shadow(16,(0,4),(0,0,0,12)))
+        card_ly = QVBoxLayout(card); card_ly.setContentsMargins(28,24,28,28); card_ly.setSpacing(12)
 
         # Identificação
         card_ly.addWidget(_section("Identificação"))
@@ -276,21 +357,32 @@ class BaseDadosPanel(QWidget):
         form_ly.addWidget(card)
 
         # Botões
-        btn_row = QHBoxLayout(); btn_row.setSpacing(12)
-        self.btn_ind_del = QPushButton("Excluir Indicador")
-        self.btn_ind_del.setFixedHeight(42); self.btn_ind_del.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_ind_del.setStyleSheet(f"QPushButton{{background:transparent;color:{VERMELHO_ESC};border:1px solid {VERMELHO_ESC};border-radius:8px;padding:0 20px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:#FFF1F2;}}")
+        btn_row = QHBoxLayout(); btn_row.setSpacing(10)
+        self.btn_ind_del = QPushButton("Excluir")
+        self.btn_ind_del.setFixedHeight(40); self.btn_ind_del.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ind_del.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        self.btn_ind_del.setStyleSheet(
+            f"QPushButton{{background:transparent;color:#94A3B8;border:1.5px solid #E2E8F0;"
+            f"border-radius:8px;padding:0 18px;}}"
+            f"QPushButton:hover{{color:{VERMELHO_ESC};border-color:{VERMELHO_ESC};background:#FEF2F2;}}"
+        )
         self.btn_ind_save = QPushButton("Salvar Alterações")
-        self.btn_ind_save.setFixedHeight(42); self.btn_ind_save.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_ind_save.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 32px;font-weight:bold;font-size:10pt;}}QPushButton:hover{{background:{VERMELHO};}}")
+        self.btn_ind_save.setFixedHeight(40); self.btn_ind_save.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ind_save.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.btn_ind_save.setStyleSheet(
+            f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;"
+            f"border-radius:8px;padding:0 28px;letter-spacing:0.2px;}}"
+            f"QPushButton:hover{{background:{VERMELHO};}}"
+            f"QPushButton:pressed{{background:#991B1B;}}"
+        )
         btn_row.addWidget(self.btn_ind_del); btn_row.addStretch(); btn_row.addWidget(self.btn_ind_save)
-        form_ly.addSpacing(4)
+        form_ly.addSpacing(8)
         form_ly.addLayout(btn_row)
         form_ly.addStretch()
 
         form_scroll.setWidget(form_w)
         splitter.addWidget(form_scroll)
-        splitter.setSizes([750, 450])
+        splitter.setSizes([720, 480])
         cw_ly.addWidget(splitter, 1)
         ly.addWidget(content_wrap, 1)
 
@@ -304,41 +396,60 @@ class BaseDadosPanel(QWidget):
         self.tab_sub.setStyleSheet("background:transparent;")
         ly = QVBoxLayout(self.tab_sub); ly.setContentsMargins(0,0,0,0); ly.setSpacing(0)
 
-        # ── Cabeçalho Herói ──────────────────────────────────────
+        # ── Cabeçalho Hero ───────────────────────────────────
         header = QFrame()
-        header.setStyleSheet("background:#FFFFFF; border-bottom:1px solid #E2E8F0;")
-        h_ly = QHBoxLayout(header); h_ly.setContentsMargins(40,30,40,30); h_ly.setSpacing(20)
+        header.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+            "stop:0 #FFFFFF, stop:1 #F8FAFC);"
+            "border-bottom: 1px solid #DDE3EC;"
+        )
+        h_ly = QHBoxLayout(header); h_ly.setContentsMargins(40,28,40,28); h_ly.setSpacing(24)
 
-        ttl_col = QVBoxLayout(); ttl_col.setSpacing(6)
+        accent2 = QFrame(); accent2.setFixedWidth(4); accent2.setFixedHeight(44)
+        accent2.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
+        h_ly.addWidget(accent2)
+
+        ttl_col = QVBoxLayout(); ttl_col.setSpacing(5)
         t1 = QLabel("Catálogo de Subindicadores")
-        t1.setFont(QFont("Segoe UI",18,QFont.Weight.Bold))
+        t1.setFont(QFont("Segoe UI",17,QFont.Weight.Bold))
         t1.setStyleSheet("color:#0F172A; background:transparent; border:none;")
         t2 = QLabel("Configure os indicadores granulares e crie o detalhamento de cada meta.")
-        t2.setFont(QFont("Segoe UI",11))
+        t2.setFont(QFont("Segoe UI",10))
         t2.setStyleSheet("color:#64748B; background:transparent; border:none;")
         ttl_col.addWidget(t1); ttl_col.addWidget(t2)
         h_ly.addLayout(ttl_col, 1)
 
         vsep = QFrame(); vsep.setFrameShape(QFrame.Shape.VLine)
-        vsep.setStyleSheet("background:#E2E8F0; border:none;"); vsep.setFixedWidth(1)
+        vsep.setStyleSheet("background:#DDE3EC; border:none;"); vsep.setFixedWidth(1)
         h_ly.addWidget(vsep)
 
-        fil_col = QVBoxLayout(); fil_col.setSpacing(6)
-        fil_lbl = QLabel("Filtrar Tabela por Indicador Pai:")
-        fil_lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold)); fil_lbl.setStyleSheet("color:#475569; background:transparent; border:none;")
-        self.cb_filter_ind = QComboBox(); self.cb_filter_ind.setFixedHeight(42); self.cb_filter_ind.setMinimumWidth(340)
-        self.cb_filter_ind.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}")
+        fil_col = QVBoxLayout(); fil_col.setSpacing(5)
+        fil_lbl = QLabel("Filtrar por Indicador Pai")
+        fil_lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        fil_lbl.setStyleSheet("color:#475569; background:transparent; border:none; letter-spacing:0.3px;")
+        self.cb_filter_ind = QComboBox(); self.cb_filter_ind.setFixedHeight(40); self.cb_filter_ind.setMinimumWidth(300)
+        self.cb_filter_ind.setStyleSheet(
+            f"QComboBox{{background:#F9FAFB;border:1.5px solid #E2E8F0;border-radius:7px;"
+            f"padding:6px 14px;color:#0F172A;font-size:10pt;}}"
+            f"QComboBox::drop-down{{border:none;width:20px;}}"
+            f"QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}"
+        )
         fil_col.addWidget(fil_lbl); fil_col.addWidget(self.cb_filter_ind)
         h_ly.addLayout(fil_col)
 
         vsep2 = QFrame(); vsep2.setFrameShape(QFrame.Shape.VLine)
-        vsep2.setStyleSheet("background:#E2E8F0; border:none;"); vsep2.setFixedWidth(1)
+        vsep2.setStyleSheet("background:#DDE3EC; border:none;"); vsep2.setFixedWidth(1)
         h_ly.addWidget(vsep2)
 
         self.btn_new_sub = QPushButton("＋  Novo Subindicador")
-        self.btn_new_sub.setFixedHeight(42); self.btn_new_sub.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_new_sub.setFixedHeight(44); self.btn_new_sub.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_new_sub.setFont(QFont("Segoe UI",10,QFont.Weight.Bold))
-        self.btn_new_sub.setStyleSheet(f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;border-radius:8px;padding:0 24px;}}QPushButton:hover{{background:{VERMELHO};}}")
+        self.btn_new_sub.setStyleSheet(
+            f"QPushButton{{background:{VERMELHO_ESC};color:#fff;border:none;"
+            f"border-radius:8px;padding:0 24px;letter-spacing:0.3px;}}"
+            f"QPushButton:hover{{background:{VERMELHO};}}"
+            f"QPushButton:pressed{{background:#991B1B;}}"
+        )
         h_ly.addWidget(self.btn_new_sub)
         ly.addWidget(header)
 
@@ -352,9 +463,9 @@ class BaseDadosPanel(QWidget):
 
         # Tabela
         tbl_frame = QFrame()
-        tbl_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #E2E8F0;border-radius:12px;}}")
-        tbl_frame.setGraphicsEffect(shadow(12,(0,4),(0,0,0,10)))
-        tf_ly = QVBoxLayout(tbl_frame); tf_ly.setContentsMargins(0,0,0,0)
+        tbl_frame.setStyleSheet(f"QFrame{{background:{BRANCO};border:1px solid #DDE3EC;border-radius:12px;}}")
+        tbl_frame.setGraphicsEffect(shadow(16,(0,4),(0,0,0,12)))
+        tf_ly = QVBoxLayout(tbl_frame); tf_ly.setContentsMargins(0,0,0,0); tf_ly.setSpacing(0)
 
         self.tbl_sub = QTableWidget(0, 5)
         self.tbl_sub.setHorizontalHeaderLabels(["ID","Indicador Pai","Nome do Subindicador","Ordem","Ativo"])
@@ -362,15 +473,29 @@ class BaseDadosPanel(QWidget):
         self.tbl_sub.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.tbl_sub.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tbl_sub.verticalHeader().setVisible(False)
-        self.tbl_sub.setAlternatingRowColors(True)
+        self.tbl_sub.setAlternatingRowColors(False)
         self.tbl_sub.setShowGrid(False)
         self.tbl_sub.setStyleSheet(f"""
-            QTableWidget{{ border:none; font-size:10pt; background:{BRANCO}; border-radius:10px; }}
-            QTableWidget::item{{ padding:12px 16px; color:#1E293B; border-bottom:1px solid #F1F5F9; }}
-            QTableWidget::item:selected{{ background:#FFF1F2; color:{VERMELHO_ESC}; font-weight:bold; }}
-            QHeaderView::section{{ background:#F8FAFC; color:#475569; font-weight:bold; font-size:9pt;
-                padding:14px 16px; border:none; border-bottom:2px solid #E2E8F0; text-transform:uppercase; letter-spacing:0.5px; }}
-            QTableWidget::item:alternate{{ background:#FAFAFA; }}
+            QTableWidget {{
+                border: none; font-size: 10pt; font-family: 'Segoe UI';
+                background: {BRANCO}; border-radius: 12px; outline: none;
+            }}
+            QTableWidget::item {{
+                padding: 0px 18px; color: #1E293B;
+                border-bottom: 1px solid #F1F5F9;
+            }}
+            QTableWidget::item:hover {{ background: #F8FAFC; }}
+            QTableWidget::item:selected {{
+                background: #FEF2F2; color: {VERMELHO_ESC};
+                border-left: 3px solid {VERMELHO_ESC}; font-weight: bold;
+            }}
+            QHeaderView::section {{
+                background: #F8FAFC; color: #64748B; font-weight: bold;
+                font-size: 8pt; font-family: 'Segoe UI';
+                padding: 16px 18px; border: none;
+                border-bottom: 2px solid #E2E8F0;
+                letter-spacing: 1px; text-transform: uppercase;
+            }}
         """)
         hdr = self.tbl_sub.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -378,14 +503,17 @@ class BaseDadosPanel(QWidget):
         hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        self.tbl_sub.verticalHeader().setDefaultSectionSize(44)
+        self.tbl_sub.verticalHeader().setDefaultSectionSize(48)
         tf_ly.addWidget(self.tbl_sub)
 
+        status_bar_sub = QFrame()
+        status_bar_sub.setStyleSheet("background:#F8FAFC;border-top:1px solid #F1F5F9;")
+        sb2_ly = QHBoxLayout(status_bar_sub); sb2_ly.setContentsMargins(18,8,18,8)
         self.lbl_status_sub = QLabel("")
-        self.lbl_status_sub.setFont(QFont("Segoe UI",9,QFont.Weight.Bold))
-        self.lbl_status_sub.setContentsMargins(16,6,16,6)
-        self.lbl_status_sub.setStyleSheet("background:transparent;border:none;")
-        tf_ly.addWidget(self.lbl_status_sub)
+        self.lbl_status_sub.setFont(QFont("Segoe UI", 9))
+        self.lbl_status_sub.setStyleSheet("background:transparent;border:none;color:#64748B;")
+        sb2_ly.addWidget(self.lbl_status_sub)
+        tf_ly.addWidget(status_bar_sub)
         splitter.addWidget(tbl_frame)
 
         # ── Painel lateral ───────────────────────────────────────
@@ -398,25 +526,37 @@ class BaseDadosPanel(QWidget):
 
         def _section(title):
             f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
-            hl = QHBoxLayout(f); hl.setContentsMargins(0,12,0,6); hl.setSpacing(10)
-            bar = QFrame(); bar.setFixedSize(4,16)
+            hl = QHBoxLayout(f); hl.setContentsMargins(0,14,0,8); hl.setSpacing(10)
+            bar = QFrame(); bar.setFixedSize(4,18)
             bar.setStyleSheet(f"background:{VERMELHO_ESC};border-radius:2px;border:none;")
             lbl = QLabel(title.upper()); lbl.setFont(QFont("Segoe UI",8,QFont.Weight.Bold))
-            lbl.setStyleSheet("color:#475569;letter-spacing:1px;background:transparent;border:none;")
+            lbl.setStyleSheet("color:#334155;letter-spacing:1.2px;background:transparent;border:none;")
             hl.addWidget(bar); hl.addWidget(lbl); hl.addStretch()
             return f
 
         def _fld(ph="", ro=False):
             w = QLineEdit(); w.setPlaceholderText(ph); w.setFixedHeight(40); w.setReadOnly(ro)
-            bg = "#F1F5F9" if ro else "#F8FAFC"
-            w.setStyleSheet(f"QLineEdit{{background:{bg};border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#{'64748B' if ro else '0F172A'};font-size:10pt;}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);}}"); return w
+            bg = "#F1F5F9" if ro else "#F9FAFB"
+            col = "#94A3B8" if ro else "#0F172A"
+            w.setStyleSheet(
+                f"QLineEdit{{background:{bg};border:1.5px solid #E2E8F0;border-radius:7px;"
+                f"padding:6px 14px;color:{col};font-size:10pt;}}"
+                f"QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;"
+                f"box-shadow:0 0 0 3px rgba(185,28,28,0.12);}}"
+            ); return w
         def _cbo():
             w = QComboBox(); w.setFixedHeight(40)
-            w.setStyleSheet(f"QComboBox{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:6px 12px;color:#0F172A;font-size:10pt;}}QComboBox::drop-down{{border:none;}}QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}"); return w
+            w.setStyleSheet(
+                f"QComboBox{{background:#F9FAFB;border:1.5px solid #E2E8F0;border-radius:7px;"
+                f"padding:6px 14px;color:#0F172A;font-size:10pt;}}"
+                f"QComboBox::drop-down{{border:none;width:20px;}}"
+                f"QComboBox:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;}}"
+            ); return w
         def _row(lbl, w):
             f = QFrame(); f.setStyleSheet("background:transparent;border:none;")
-            v = QVBoxLayout(f); v.setContentsMargins(0,0,0,0); v.setSpacing(6)
-            l = QLabel(lbl); l.setFont(QFont("Segoe UI",9, QFont.Weight.Medium)); l.setStyleSheet("color:#334155;background:transparent;border:none;")
+            v = QVBoxLayout(f); v.setContentsMargins(0,0,0,0); v.setSpacing(5)
+            l = QLabel(lbl); l.setFont(QFont("Segoe UI",8, QFont.Weight.Bold))
+            l.setStyleSheet("color:#475569;background:transparent;border:none;letter-spacing:0.3px;")
             v.addWidget(l); v.addWidget(w); return f
 
         # Badge indicador pai

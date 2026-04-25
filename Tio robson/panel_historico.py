@@ -128,17 +128,21 @@ class HistoricoPanel(QWidget):
         g_ly = QVBoxLayout(self.grade_frame); g_ly.setContentsMargins(32,32,32,32); g_ly.setSpacing(24)
 
         # Title + mini-summary row
-        title_row = QHBoxLayout(); title_row.setSpacing(20)
-        self.grade_title = _lbl("Nenhum subindicador carregado", bold=True, size=13, color="#0F172A")
+        title_row = QHBoxLayout(); title_row.setSpacing(16)
+        self.grade_title = _lbl("Nenhum subindicador carregado", bold=True, size=14, color="#0F172A")
         title_row.addWidget(self.grade_title, 1)
         # Mini KPIs
-        for attr, label in [("kpi_preenchidos","MESES PREECHIDOS"), ("kpi_total","VALOR ACUMULADO"), ("kpi_media","MÉDIA MENSAL")]:
+        kpi_colors = [("kpi_preenchidos","MESES","#6366F1","#EEF2FF"),
+                      ("kpi_total","ACUMULADO","#0891B2","#ECFEFF"),
+                      ("kpi_media","MÉDIA","#059669","#ECFDF5")]
+        for attr, label, accent_c, bg_c in kpi_colors:
             kpi = QFrame()
-            kpi.setStyleSheet(f"QFrame{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;}}")
-            kpi_ly = QVBoxLayout(kpi); kpi_ly.setContentsMargins(16,10,16,10); kpi_ly.setSpacing(2)
-            val_lbl = _lbl("—", bold=True, size=16, color="#0F172A")
-            lbl_lbl = _lbl(label, size=7, color="#64748B")
-            lbl_lbl.setStyleSheet("color:#64748B;letter-spacing:1px;background:transparent;border:none;font-weight:bold;")
+            kpi.setStyleSheet(f"QFrame{{background:{bg_c};border:1.5px solid {accent_c}30;border-radius:10px;}}")
+            kpi.setMinimumWidth(110)
+            kpi_ly = QVBoxLayout(kpi); kpi_ly.setContentsMargins(16,12,16,12); kpi_ly.setSpacing(3)
+            val_lbl = _lbl("—", bold=True, size=18, color=accent_c)
+            lbl_lbl = _lbl(label, size=7, color=accent_c)
+            lbl_lbl.setStyleSheet(f"color:{accent_c};letter-spacing:1.5px;background:transparent;border:none;font-weight:bold;")
             kpi_ly.addWidget(val_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
             kpi_ly.addWidget(lbl_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
             setattr(self, attr, val_lbl)
@@ -149,25 +153,41 @@ class HistoricoPanel(QWidget):
         g_ly.addWidget(sep2)
 
         # Grid 4 trimestres x 3 meses
-        grid = QGridLayout(); grid.setSpacing(12)
+        grid = QGridLayout(); grid.setSpacing(10)
+        TRIM_COLORS = ["#7C3AED","#0891B2","#059669","#D97706"]
         for ti, trim in enumerate(TRIM_LABELS):
+            accent_c = TRIM_COLORS[ti]
             # Trim header
             th = QLabel(trim)
             th.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-            th.setStyleSheet(f"color:#475569;background:#F1F5F9;border:1px solid #E2E8F0;border-radius:6px;padding:8px 12px;letter-spacing:1px;")
+            th.setStyleSheet(
+                f"color:{accent_c};background:{accent_c}12;"
+                f"border:1.5px solid {accent_c}40;border-radius:7px;"
+                f"padding:10px 16px;letter-spacing:1px;"
+            )
             th.setAlignment(Qt.AlignmentFlag.AlignCenter)
             grid.addWidget(th, ti*2, 0, 1, 3)
             # 3 months
             for mi in range(3):
                 mes_idx = ti*3 + mi
                 mes = MESES[mes_idx]
-                cell = QFrame(); cell.setStyleSheet("QFrame{background:transparent;border:none;}")
-                c_ly = QVBoxLayout(cell); c_ly.setContentsMargins(4,4,4,4); c_ly.setSpacing(6)
-                lbl = _lbl(mes.upper(), bold=True, size=8, color="#64748B")
+                cell = QFrame()
+                cell.setStyleSheet(
+                    f"QFrame{{background:#FAFAFA;border:1px solid #E8EDF4;"
+                    f"border-radius:8px;}}"
+                )
+                c_ly = QVBoxLayout(cell); c_ly.setContentsMargins(6,10,6,8); c_ly.setSpacing(5)
+                lbl = _lbl(mes[:3].upper(), bold=True, size=7, color="#94A3B8")
                 lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                inp = QLineEdit(); inp.setFixedHeight(42); inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                lbl.setStyleSheet("color:#94A3B8;letter-spacing:1.5px;background:transparent;border:none;font-weight:bold;")
+                inp = QLineEdit(); inp.setFixedHeight(40); inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 inp.setPlaceholderText("—")
-                inp.setStyleSheet(f"QLineEdit{{background:#FFFFFF;border:1px solid #CBD5E1;border-radius:6px;padding:4px 8px;color:#0F172A;font-size:12pt;font-weight:bold;}}QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;box-shadow: 0 0 0 2px rgba(185,28,28,0.2);}}")
+                inp.setStyleSheet(
+                    f"QLineEdit{{background:#FFFFFF;border:1.5px solid #E2E8F0;border-radius:6px;"
+                    f"padding:4px 8px;color:#0F172A;font-size:13pt;font-weight:bold;}}"
+                    f"QLineEdit:focus{{border:1.5px solid {VERMELHO_ESC};background:#FFFFFF;"
+                    f"box-shadow:0 0 0 3px rgba(185,28,28,0.12);}}"
+                )
                 self._inputs[mes] = inp
                 c_ly.addWidget(lbl); c_ly.addWidget(inp)
                 grid.addWidget(cell, ti*2+1, mi)
@@ -305,15 +325,18 @@ class HistoricoPanel(QWidget):
         saved = errors = 0
         for mes in MESES:
             txt = self._inputs[mes].text().strip().replace(",",".")
-            if txt in ("","–"): continue
+            if txt in ("","–"):
+                db.delete_historico_mes(sub_id, ano, mes)
+                continue
             try:
                 if db.upsert_historico(sub_id, ano, mes, float(txt)): saved += 1
                 else: errors += 1
             except ValueError: errors += 1
+        
         if errors:
             self._st(f"⚠️ {errors} valores inválidos.", LARANJA)
         else:
-            self._st(f"✅ {saved} meses salvos!", VERDE)
+            self._st(f"✅ Histórico salvo com sucesso!", VERDE)
             self._load_historico()
 
     def _clear_inputs(self):
